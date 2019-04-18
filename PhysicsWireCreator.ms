@@ -1,3 +1,5 @@
+filein "includes/PhysicsWireBuilder.ms"
+
 plugin modifier phyiscsWireController
 name:"Physics Wire Controller"
 classID:#(0x5c1773b9, 0x75d4f467)
@@ -74,8 +76,9 @@ version:1
 
 
     /** The rollouts. Declared here so they can be accessed by all other rollouts. */
-    local splineRollout, boneRollout, constraintRollout, endObjectRollout
-
+    local splineRollout, boneRollout, constraintRollout, anchorObjectRollout
+    /** Instance of the helper struct */
+    local builder = PhysicsWireBuilder()
 
     /*==================================================================================================================
         PARAMETERS
@@ -119,10 +122,13 @@ version:1
     )
 
     /** Parameters for End Object Rollout */
-    parameters endObjectData rollout:endObjectRollout
+    parameters endObjectData rollout:anchorObjectRollout
     (
-        nEndObject type:#node tabSizeVariable:true
-        sEndObjectLayer type:#string
+        nStartAnchor type:#node ui:ui_pickStart
+        nEndAnchor type:#node ui:ui_pickEnd
+        bAnchorPrefix type:#boolean default:true ui:ui_chkUsePrefix
+        sAnchorPrefix type:#string default:"" ui:ui_etPrefix
+        sAnchorLayer type:#string
     )
 
 
@@ -144,29 +150,33 @@ version:1
         spinner ui_spinWireWidth "Wire Width" range:[0.001, 99999999, fWireWidth] scale:0.1 align:#right
         button ui_butUpdate "Update" enabled:false
 
+        -- METHODS
         fn refreshPrefix = 
         (
             if bSplinePrefix == true then sSplinePrefix = $.name
             ui_etPrefix.readOnly = bSplinePrefix
         )
+        fn refreshButton = (ui_butUpdate.enabled = (nSpline != undefined))
+        fn buildParams =
+        (
+            local params = PhysicsWireSplineParams()
+            params.fWireWidth = fWireWidth
+            params.sPrefixName = sSplinePrefix
+            params -- return
+        )
 
         -- EVENTS
-        on splineRollout open do (setupDropdown ui_ddLayer sSplineLayer; refreshPrefix())
-        on ui_pickSplineObj rightClick do (ui_pickSplineObj.object = nSpline = undefined)
+        on splineRollout open do (setupDropdown ui_ddLayer sSplineLayer; refreshPrefix(); refreshButton())
+        on ui_pickSplineObj picked obj do (refreshButton())
+        on ui_pickSplineObj rightClick do (ui_pickSplineObj.object = nSpline = undefined; refreshButton())
         on ui_chkUsePrefix changed val do (refreshPrefix())
         on ui_ddLayer selected index do (sSplineLayer = ui_ddLayer.selected)
-        on ui_butUpdate pressed do
-        (
-            -- build params
-            local params = PhysicsWireSplineParams fWireWidth 
-        )
+        on ui_butUpdate pressed do (builder.modifyWireSpline nSpline ntBones (buildParams()))
     )
 
     /** Rollout for bone controls */
     rollout bonesRollout "Bones"
     (
-        fn getBoneNames = (for b in ntBones collect b.name)
-
         -- UI ELEMENTS
         multilistbox ui_multiBones "Bones" height:5
         button ui_butSelect "Select" enabled:false align:#right
@@ -181,6 +191,7 @@ version:1
         button ui_butUpdate "Update" width:65 align:#left across:2
         button ui_butBuild "Build" width:65 align:#right
 
+        -- METHODS
         fn refreshPrefix = 
         (
             if bBonePrefix == true then sBonePrefix = $.name
@@ -227,6 +238,7 @@ version:1
         button ui_butUpdate "Update" width:65 align:#left across:2
         button ui_butBuild "Build" width:65 align:#right
 
+        -- METHODS
         fn refreshPrefix = 
         (
             if bConstraintPrefix == true then sConstraintPrefix = $.name
@@ -260,9 +272,30 @@ version:1
     )
 
     /** Rollout for end object controls */
-    rollout endObjectRollout "End Object"
+    rollout anchorObjectRollout "Anchor Object"
     (
+        -- FILTERS
+        fn filterRigidBody obj = ((for m in obj.modifiers where classof m == MassFX_RBody collect m).count > 0)
 
+        -- UI ELEMENTS
+        pickButton ui_pickStart "Pick Start Anchor" message:"Pick an rigid body object that will be the start anchor." \
+                                    filter:filterRigidBody autoDisplay:true width:140
+        pickButton ui_pickEnd "Pick End Anchor" message:"Pick an rigid body object that will be the end anchor." \
+                                    filter:filterRigidBody autoDisplay:true width:140
+        checkbox ui_chkUsePrefix "Use Controller Name"
+        edittext ui_etPrefix "" width:140
+
+        -- METHODS
+        fn refreshPrefix = 
+        (
+            if bAnchorPrefix == true then sAnchorPrefix = $.name
+            ui_etPrefix.readOnly = bAnchorPrefix
+        )
+
+        -- EVENTS
+        on ui_pickStart rightClick do (ui_pickStart.object = nStartAnchor = undefined)
+        on ui_pickEnd rightClick do (ui_pickEnd.object = nEndAnchor = undefined)
+        on ui_chkUsePrefix changed val do (refreshPrefix())
     )
 
     /** Rollout for main actions */

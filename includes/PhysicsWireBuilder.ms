@@ -87,7 +87,7 @@ struct PhysicsWireBuilder
 		
 		-- Set obj skin modifier as current object in modpanel if needed.
 		if ModPanel.GetCurrentObject() != obj.skin do ModPanel.SetCurrentObject obj.skin
-	)
+	),
 
     
     public
