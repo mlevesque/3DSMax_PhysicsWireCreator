@@ -7,76 +7,8 @@ replaceUI:off
 silentErrors:off
 version:1
 (
-    /*==================================================================================================================
-        PLUGIN METHODS
-    */
-    /**
-        Returns array of layer names.
-
-        @return Array of strings.
-     */
-    fn getLayerNames =
-    (
-        local layerList = #()
-		for i = 0 to (LayerManager.count-1) do (append layerList (LayerManager.getLayer i).name)
-        layerList -- return
-    )
-
-    /**
-        Sets the dropdown selection to the given string for the given dropdown.
-
-        @param dropDown
-            The dropdown UI.
-        @param selectionText
-            The string to find and select in the dropdown.
-
-        @return
-            Returns true if successful. False if not (the string could not be found in the dropdown).
-     */
-    fn setDropdownSelection dropDown selectionText =
-    (
-        local index = findItem dropDown.items selectionText
-        if index == 0 then false else (dropDown.selection = index; true)
-    )
-
-    /**
-        Populates the given dropdown and selects the entry matching the given string. If the given string could not be
-        found, then it will try to select the current layer name. If that doesn't work, then will just set selection to
-        zero (nothing).
-
-        @param dropDown
-            The dropdown UI.
-        @param selectionText
-            The string to find in the dropdown and select.
-     */
-    fn setupDropdown dropDown selectionText =
-    (
-        dropDown.items = getLayerNames()
-        local found = setDropdownSelection dropDown selectionText
-        if found == false then found = setDropdownSelection dropDown LayerManager.current.name
-        if found == false then dropDown.selection = 0
-    )
-
-    /**
-        Sets the layer for the given object to the given layer by name.
-
-        @param obj
-            The obj to place in the given layer.
-        @param layerName
-            The name of the layer to add the given object to.
-
-        @return
-            Returns true if successful. False if not.
-     */
-    fn setLayer obj layerName =
-    (
-        local layerObj = LayerManager.getLayerFromName layerName
-        if layerObj == undefined then false else (layerObj.addnode obj; true)
-    )
-
-
     /** The rollouts. Declared here so they can be accessed by all other rollouts. */
-    local splineRollout, boneRollout, constraintRollout, anchorObjectRollout
+    local splineRollout, bonesRollout, constraintsRollout, anchorObjectRollout
     /** Instance of the helper struct */
     local builder = PhysicsWireBuilder()
 
@@ -133,6 +65,122 @@ version:1
 
 
     /*==================================================================================================================
+        PLUGIN METHODS
+    */
+    /**
+        Returns array of layer names.
+
+        @return Array of strings.
+    */
+    fn getLayerNames =
+    (
+        local layerList = #()
+        for i = 0 to (LayerManager.count-1) do (append layerList (LayerManager.getLayer i).name)
+        layerList -- return
+    )
+ 
+    /**
+        Sets the dropdown selection to the given string for the given dropdown.
+
+        @param dropDown
+            The dropdown UI.
+        @param selectionText
+            The string to find and select in the dropdown.
+
+        @return
+            Returns true if successful. False if not (the string could not be found in the dropdown).
+    */
+    fn setDropdownSelection dropDown selectionText =
+    (
+        local index = findItem dropDown.items selectionText
+        if index == 0 then false else (dropDown.selection = index; true)
+    )
+ 
+    /**
+        Populates the given dropdown and selects the entry matching the given string. If the given string could not be
+        found, then it will try to select the current layer name. If that doesn't work, then will just set selection to
+        zero (nothing).
+
+        @param dropDown
+            The dropdown UI.
+        @param selectionText
+            The string to find in the dropdown and select.
+    */
+    fn setupDropdown dropDown selectionText =
+    (
+        dropDown.items = getLayerNames()
+        local found = setDropdownSelection dropDown selectionText
+        if found == false then found = setDropdownSelection dropDown LayerManager.current.name
+        if found == false then dropDown.selection = 0
+    )
+ 
+    /**
+        Sets the layer for the given object to the given layer by name.
+
+        @param obj
+            The obj to place in the given layer.
+        @param layerName
+            The name of the layer to add the given object to.
+
+        @return
+            Returns true if successful. False if not.
+    */
+    fn setLayer obj layerName =
+    (
+        local layerObj = LayerManager.getLayerFromName layerName
+        if layerObj == undefined then false else (layerObj.addnode obj; true)
+    )
+
+    /**
+        Builds the Spline Params struct and returns it.
+
+        @return PhysicsWireSplineParams
+     */
+    fn buildSplineParams =
+    (
+        local params = PhysicsWireSplineParams()
+        params.fWireWidth = fWireWidth
+        params.sPrefixName = sSplinePrefix
+        params -- return
+    )
+ 
+    /**
+        Builds the Bone Params struct and returns it.
+
+        @return PhysicsWireBoneParams
+     */
+    fn buildBoneParams =
+    (
+        local params = PhysicsWireBoneParams()
+        params.bStartAnchor = bStartAnchor
+        params.bEndAnchor = bEndAnchor
+        params.fWireWidth = fWireWidth
+        params.fCollisionPadding = fCollisionPadding
+        params.fDensity = fDensity
+        params.sPrefixName = sBonePrefix
+        params -- return
+    )
+
+    /**
+        Builds the Constraint Params struct and returns it.
+
+        @return PhysicsWireConstraintParams
+     */
+    fn buildConstraintParams =
+    (
+        local params = PhysicsWireConstraintParams()
+        params.fSwingAngle = aSwingAngle
+        params.fSwingSpring = fSwingSpring
+        params.fSwingDampening = fSwingDamping
+        params.fTwistAngle = aTwistAngle
+        params.fTwistSpring = fTwistSpring
+        params.fTwistDampening = fTwistDamping
+        params.sPrefixName = sConstraintPrefix
+        params -- return
+    )
+
+
+    /*==================================================================================================================
         ROLLOUTS
     */
     /** Rollout for spline controls */
@@ -157,21 +205,19 @@ version:1
             ui_etPrefix.readOnly = bSplinePrefix
         )
         fn refreshButton = (ui_butUpdate.enabled = (nSpline != undefined))
-        fn buildParams =
-        (
-            local params = PhysicsWireSplineParams()
-            params.fWireWidth = fWireWidth
-            params.sPrefixName = sSplinePrefix
-            params -- return
-        )
 
         -- EVENTS
         on splineRollout open do (setupDropdown ui_ddLayer sSplineLayer; refreshPrefix(); refreshButton())
-        on ui_pickSplineObj picked obj do (refreshButton())
-        on ui_pickSplineObj rightClick do (ui_pickSplineObj.object = nSpline = undefined; refreshButton())
+        on ui_pickSplineObj picked obj do (refreshButton(); bonesRollout.refresh())
+        on ui_pickSplineObj rightClick do
+        (
+            ui_pickSplineObj.object = nSpline = undefined
+            refreshButton()
+            bonesRollout.refresh()
+        )
         on ui_chkUsePrefix changed val do (refreshPrefix())
         on ui_ddLayer selected index do (sSplineLayer = ui_ddLayer.selected)
-        on ui_butUpdate pressed do (builder.modifyWireSpline nSpline ntBones (buildParams()))
+        on ui_butUpdate pressed do (builder.modifyWireSpline nSpline ntBones (buildSplineParams()))
     )
 
     /** Rollout for bone controls */
@@ -204,7 +250,7 @@ version:1
             ui_multiBones.items = for b in ntBones collect b.name
             ui_butSelect.enabled = false
             ui_butUpdate.enabled = (ntBones.count > 0)
-            ui_butBuild.enabled = (nSplineObject != undefined)
+            ui_butBuild.enabled = (nSpline != undefined)
             ui_butBuild.caption = if ntBones.count > 0 then "Rebuild" else "Build"
         )
 
@@ -218,6 +264,8 @@ version:1
             ui_butSelect.enabled = (ui_multiBones.selection.count > 0)
         )
         on ui_chkUsePrefix changed val do (refreshPrefix())
+        on ui_butUpdate pressed do (builder.modifyBones ntBones (buildBoneParams()))
+        on ui_butBuild pressed do (ntBones = builder.buildBones nSpline (buildBoneParams()))
     )
 
     /** Rollout for constraint controls */

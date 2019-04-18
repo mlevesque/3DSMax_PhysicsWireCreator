@@ -17,7 +17,7 @@ struct PhysicsWireBuilder
      */
     fn __buildPointsArray splineObj =
     (
-        arrPoints = #()
+        local arrPoints = #()
 		if splineObj != undefined then
 		(
 			local num = numKnots splineObj
@@ -27,7 +27,8 @@ struct PhysicsWireBuilder
 				-- ignore consecutive knots that are in the same position
 				if arrPoints.count == 0 OR arrPoints[i-1] != newPoint then append arrPoints newPoint
 			)
-		)
+        )
+        arrPoints -- return
     ),
 
     /**
@@ -126,7 +127,7 @@ struct PhysicsWireBuilder
             if shouldBeKinematic == true then rigidBodyMod.type = 2 else rigidBodyMod.type = 1
             rigidBodyMod.meshType = 3 --capsule
             rigidBodyMod.meshRadius = wireRadius + structBoneParams.fCollisionPadding
-            rigidBodyMod.meshHeight = boneObject.length - (rigidBodyMod.meshRadius * 4)
+            rigidBodyMod.meshHeight = boneObj.length - (rigidBodyMod.meshRadius * 4)
             rigidBodyMod.density = structBoneParams.fDensity
 
             -- position and orient collision
@@ -134,7 +135,7 @@ struct PhysicsWireBuilder
             rigidBodyMod.SetRBMeshTM 1 trans
 
             -- set name
-            boneObj.name = (sPrefixName + ".bone" + (formattedPrint i format:"02u"))
+            boneObj.name = (structBoneParams.sPrefixName + ".bone" + (formattedPrint i format:"02u"))
         )
     ),
 
@@ -181,7 +182,9 @@ struct PhysicsWireBuilder
 			c.twistMode = 2 -- limited
 			c.twistAngleLow = c.twistAngleHigh = structConstraintParams.fTwistAngle
 			c.twistSpringLow = c.twistSpringHigh = c.twistSpring = structConstraintParams.fTwistSpring
-			c.twistDampingLow = c.twistDampingHigh = c.twistDamping = structConstraintParams.fTwistDampening
+            c.twistDampingLow = c.twistDampingHigh = c.twistDamping = structConstraintParams.fTwistDampening
+            
+            c.name = (structConstraintParams.sPrefixName + ".constraint" + (formattedPrint i format:"02u"))
         )
     ),
 
@@ -207,8 +210,8 @@ struct PhysicsWireBuilder
         for i = 1 to arrBones.count do
         (
             -- only update system once we add the last bone
-            local last = if i == boneObjects.count then -1 else 0
-            skinOps.addbone skinMod boneObjects[i] last
+            local last = if i == arrBones.count then -1 else 0
+            skinOps.addbone skinMod arrBones[i] last
         )
 
         -- get sweep modifier
