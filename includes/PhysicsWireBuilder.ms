@@ -274,10 +274,10 @@ struct PhysicsWireBuilder
         -- create a constraint for each pair of adjacent bones in the array
         arrConstraints = #()
         local boneCount = arrBones.count - 1
-        for i = 1 to boneCount do (append arrConstraints UConstraint())
+        for i = 1 to boneCount do (append arrConstraints (UConstraint()))
 
         -- modifiy properties
-        modifyConstraints arrConstraints arrBones
+        modifyConstraints arrConstraints arrBones structConstraintParams
         arrConstraints -- return
     )
 )

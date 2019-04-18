@@ -265,7 +265,14 @@ version:1
         )
         on ui_chkUsePrefix changed val do (refreshPrefix())
         on ui_butUpdate pressed do (builder.modifyBones ntBones (buildBoneParams()))
-        on ui_butBuild pressed do (ntBones = builder.buildBones nSpline (buildBoneParams()))
+        on ui_butBuild pressed do
+        (
+            for n in ntBones do delete n
+            ntBones = #()
+            ntBones = builder.buildBones nSpline (buildBoneParams())
+            refresh()
+            constraintsRollout.refresh()
+        )
     )
 
     /** Rollout for constraint controls */
@@ -317,6 +324,14 @@ version:1
         on ui_chkUsePrefix changed val do (refreshPrefix())
         on ui_aglSwingLimit changed val do (aSwingAngle = val)
         on ui_aglTwistLimit changed val do (aTwistAngle = val)
+        on ui_butUpdate pressed do (builder.modifyConstraints ntConstraints ntBones (buildConstraintParams()))
+        on ui_butBuild pressed do
+        (
+            for n in ntConstraints do delete n
+            ntConstraints = #()
+            ntConstraints = builder.buildConstraints ntBones (buildConstraintParams())
+            refresh()
+        )
     )
 
     /** Rollout for end object controls */
