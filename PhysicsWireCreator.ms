@@ -46,11 +46,11 @@ version:1
         sConstraintPrefix type:#string default:"" ui:ui_etPrefix
         sConstraintLayer type:#string
         aSwingAngle type:#angle default:10
-        fSwingSpring type:#float default:0.1
-        fSwingDamping type:#float default:100
+        fSwingSpring type:#float default:0.1 ui:ui_spinSwingSpring
+        fSwingDamping type:#float default:100 ui:ui_spinSwingDamping
         aTwistAngle type:#angle default:10
-        fTwistSpring type:#float default:0.1
-        fTwistDamping type:#float default:100
+        fTwistSpring type:#float default:0.1 ui:ui_spinTwistSpring
+        fTwistDamping type:#float default:100 ui:ui_spinTwistDamping
     )
 
     /** Parameters for End Object Rollout */
