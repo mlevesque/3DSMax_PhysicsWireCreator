@@ -12,6 +12,7 @@ version:1
     /** Instance of the helper struct */
     local builder = PhysicsWireBuilder()
 
+
     /*==================================================================================================================
         PARAMETERS
     */
@@ -138,10 +139,7 @@ version:1
      */
     fn buildSplineParams =
     (
-        local params = PhysicsWireSplineParams()
-        params.fWireWidth = fWireWidth
-        params.sPrefixName = sSplinePrefix
-        params -- return
+        PhysicsWireSplineParams fWireWidth sSplinePrefix
     )
  
     /**
@@ -151,14 +149,7 @@ version:1
      */
     fn buildBoneParams =
     (
-        local params = PhysicsWireBoneParams()
-        params.bStartAnchor = bStartAnchor
-        params.bEndAnchor = bEndAnchor
-        params.fWireWidth = fWireWidth
-        params.fCollisionPadding = fCollisionPadding
-        params.fDensity = fDensity
-        params.sPrefixName = sBonePrefix
-        params -- return
+        PhysicsWireBoneParams bStartAnchor bEndAnchor fWireWidth fCollisionPadding fDensity sBonePrefix
     )
 
     /**
@@ -168,15 +159,55 @@ version:1
      */
     fn buildConstraintParams =
     (
-        local params = PhysicsWireConstraintParams()
-        params.fSwingAngle = aSwingAngle
-        params.fSwingSpring = fSwingSpring
-        params.fSwingDampening = fSwingDamping
-        params.fTwistAngle = aTwistAngle
-        params.fTwistSpring = fTwistSpring
-        params.fTwistDampening = fTwistDamping
-        params.sPrefixName = sConstraintPrefix
-        params -- return
+        PhysicsWireConstraintParams aSwingAngle fSwingSpring fSwingDamping aTwistAngle fTwistSpring fTwistDamping \
+                                    sConstraintPrefix
+    )
+
+    /**
+        Deletes all the modifiers from the spline object.
+     */
+    fn removeAllWireModifiers =
+    (
+        if nSpline != undefined then
+        (
+            for m in nSpline.modifiers do deleteModifier nSpline m
+        )
+    )
+
+    /**
+        Destroys all the bones.
+     */
+    fn destroyBones =
+    (
+        for n in ntBones do delete n
+        ntBones = #()
+    )
+
+    /**
+        Destroys all the constraints.
+     */
+    fn destroyConstraints =
+    (
+        for n in ntConstraints do delete n
+        ntConstraints = #()
+    )
+
+    /**
+        Removes missing bones from the list. This can happen if the bones were destroyed manually.
+     */
+    fn cleanupBadBones =
+    (
+        local toDelete = for i = ntBones.count to 1 by -1 where ntBones[i] == undefined collect i
+        for i in toDelete do deleteItem ntBones i
+    )
+
+    /**
+        Removes missing constraints from the list. This can happen if the constraints were destroyed manually.
+     */
+    fn cleanupBadConstraints =
+    (
+        local toDelete = for i = ntConstraints.count to 1 by -1 where ntConstraints[i] == undefined collect i
+        for i in toDelete do deleteItem ntConstraints i
     )
 
 
@@ -247,6 +278,7 @@ version:1
         (
             refreshPrefix()
             setupDropdown ui_ddLayer sBoneLayer
+            cleanupBadBones()
             ui_multiBones.items = for b in ntBones collect b.name
             ui_butSelect.enabled = false
             ui_butUpdate.enabled = (ntBones.count > 0)
@@ -267,8 +299,7 @@ version:1
         on ui_butUpdate pressed do (builder.modifyBones ntBones (buildBoneParams()))
         on ui_butBuild pressed do
         (
-            for n in ntBones do delete n
-            ntBones = #()
+            destroyBones()
             ntBones = builder.buildBones nSpline (buildBoneParams())
             refresh()
             constraintsRollout.refresh()
@@ -303,6 +334,7 @@ version:1
         (
             refreshPrefix()
             setupDropdown ui_ddLayer sConstraintLayer
+            cleanupBadConstraints()
             ui_multiConstraints.items = for b in ntConstraints collect b.name
             ui_butSelect.enabled = false
             ui_butUpdate.enabled = (ntConstraints.count > 0)
@@ -327,8 +359,7 @@ version:1
         on ui_butUpdate pressed do (builder.modifyConstraints ntConstraints ntBones (buildConstraintParams()))
         on ui_butBuild pressed do
         (
-            for n in ntConstraints do delete n
-            ntConstraints = #()
+            destroyConstraints()
             ntConstraints = builder.buildConstraints ntBones (buildConstraintParams())
             refresh()
         )
@@ -365,7 +396,35 @@ version:1
     rollout mainRollout "Main Actions"
     (
         button ui_butCreate "Create Wire"
+        button ui_butUpdate "Update Wire"
+        button ui_butDestroy "Destroy Wire"
 
-        on ui_butCreate pressed do ()
+        fn destroy =
+        (
+            removeAllWireModifiers()
+            destroyConstraints()
+            destroyBones()
+        )
+
+        on ui_butCreate pressed do 
+        (
+            destroy()
+            local wireParams = buildSplineParams()
+            local boneParams = buildBoneParams()
+            local constraintParams = buildConstraintParams()
+            ntBones = builder.buildBones nSpline boneParams
+            ntConstraints = builder.buildConstraints ntBones constraintParams
+            builder.modifyWireSpline nSpline ntBones wireParams
+        )
+        on ui_butUpdate pressed do
+        (
+            local wireParams = buildSplineParams()
+            local boneParams = buildBoneParams()
+            local constraintParams = buildConstraintParams()
+            builder.modifyBones ntBones boneParams
+            builder.modifyConstraints ntConstraints ntBones constraintParams
+            builder.modifyWireSpline nSpline ntBones wireParams
+        )
+        on ui_butDestroy pressed do (destroy())
     )
 )
