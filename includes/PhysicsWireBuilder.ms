@@ -185,6 +185,12 @@ struct PhysicsWireBuilder
             c.twistDampingLow = c.twistDampingHigh = c.twistDamping = structConstraintParams.fTwistDampening
             
             c.name = (structConstraintParams.sPrefixName + ".constraint" + (formattedPrint i format:"02u"))
+
+            -- constrain position to second bone
+            local posCtrl = Position_Constraint()
+            c.pos.controller = posCtrl
+            local posConstraintInterface = posCtrl.constraints
+            posConstraintInterface.appendTarget secondBone 100
         )
     ),
 
