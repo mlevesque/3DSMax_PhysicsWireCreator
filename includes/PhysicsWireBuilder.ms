@@ -103,8 +103,10 @@ struct PhysicsWireBuilder
         @param structBoneParams
             The parameters needed for setting up the bone properties. This should be the struct
             PhysicsWireBoneParams.
+        @param parentObj
+            The container object for all the bones.
      */
-    fn modifyBones arrBones structBoneParams =
+    fn modifyBones arrBones structBoneParams parentObj =
     (
         -- modify each bone
         for i = 1 to arrBones.count do
@@ -136,6 +138,9 @@ struct PhysicsWireBuilder
 
             -- set name
             boneObj.name = (structBoneParams.sPrefixName + ".bone" + (formattedPrint i format:"02u"))
+
+            -- set parent
+            boneObj.parent = parentObj
         )
     ),
 
@@ -150,8 +155,10 @@ struct PhysicsWireBuilder
         @param structConstraintParams
             The parameters needed for setting up the constraint properties. This should be the struct
             PhysicsWireConstraintParams.
+        @param parentObj
+            The container object for all the constraints.
      */
-    fn modifyConstraints arrConstraints arrBones structConstraintParams =
+    fn modifyConstraints arrConstraints arrBones structConstraintParams parentObj =
     (
         -- modify each constraint
         for i = 1 to arrConstraints.count while i < arrBones.count do
@@ -184,7 +191,11 @@ struct PhysicsWireBuilder
 			c.twistSpringLow = c.twistSpringHigh = c.twistSpring = structConstraintParams.fTwistSpring
             c.twistDampingLow = c.twistDampingHigh = c.twistDamping = structConstraintParams.fTwistDampening
             
+            -- set name
             c.name = (structConstraintParams.sPrefixName + ".constraint" + (formattedPrint i format:"02u"))
+
+            -- set parent
+            c.parent = parentObj
 
             -- constrain position to second bone
             local posCtrl = Position_Constraint()
@@ -204,8 +215,10 @@ struct PhysicsWireBuilder
         @param structWireParams
             The parameters needed for setting up the spline wire properties. This should be the struct
             PhysicsWireSplineParams.
+        @param parentObj
+            The container object for the spline.
      */
-    fn modifyWireSpline splineObj arrBones structWireParams =
+    fn modifyWireSpline splineObj arrBones structWireParams parentObj =
     (
         -- get Skin modifier
         local skinMod = __getModifier splineObj Skin
@@ -232,6 +245,9 @@ struct PhysicsWireBuilder
 
         -- set name
         splineObj.name = (structWireParams.sPrefixName + ".spline")
+
+        -- set parent
+        splineObj.parent = parentObj
     ),
 
     /**
@@ -242,10 +258,12 @@ struct PhysicsWireBuilder
         @param structBoneParams
             The parameters needed for setting up the bone properties. This should be the struct
             PhysicsWireBoneParams.
+        @param parentObj
+            The container object for all the bones.
 
         @return An array of created bones.
      */
-    fn buildBones splineObj structBoneParams =
+    fn buildBones splineObj structBoneParams parentObj =
     (
         -- get spline points
         local arrPoints = __buildPointsArray splineObj
@@ -256,11 +274,12 @@ struct PhysicsWireBuilder
 		for i = 1 to pointCount do
 		(
             local zAxis = __buildBoneZAxis arrPoints[i] arrPoints[i+1]
-			append arrBones (BoneSys.createBone arrPoints[i] arrPoints[i+1] zAxis)
+            local boneObj = BoneSys.createBone arrPoints[i] arrPoints[i+1] zAxis
+			append arrBones boneObj
         )
 
         -- modifiy properties
-        modifyBones arrBones structBoneParams
+        modifyBones arrBones structBoneParams parentObj
         arrBones -- return
     ),
 
@@ -272,18 +291,24 @@ struct PhysicsWireBuilder
         @param structConstraintParams
             The parameters needed for setting up the constraint properties. This should be the struct
             PhysicsWireConstraintParams.
+        @param parentObj
+            The container object for all the constraints.
 
         @return An array of created constraints.
      */
-    fn buildConstraints arrBones structConstraintParams =
+    fn buildConstraints arrBones structConstraintParams parentObj =
     (
         -- create a constraint for each pair of adjacent bones in the array
         arrConstraints = #()
         local boneCount = arrBones.count - 1
-        for i = 1 to boneCount do (append arrConstraints (UConstraint()))
+        for i = 1 to boneCount do
+        (
+            local c = UConstraint()
+            append arrConstraints c
+        )
 
         -- modifiy properties
-        modifyConstraints arrConstraints arrBones structConstraintParams
+        modifyConstraints arrConstraints arrBones structConstraintParams parentObj
         arrConstraints -- return
     )
 )

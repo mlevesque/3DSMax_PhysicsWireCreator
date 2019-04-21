@@ -8,7 +8,7 @@ silentErrors:off
 version:1
 (
     /** The rollouts. Declared here so they can be accessed by all other rollouts. */
-    local splineRollout, bonesRollout, constraintsRollout, anchorObjectRollout
+    local splineRollout, bonesRollout, constraintsRollout, anchorObjectRollout, mainRollout
     /** Instance of the helper struct */
     local builder = PhysicsWireBuilder()
 
@@ -16,6 +16,10 @@ version:1
     /*==================================================================================================================
         PARAMETERS
     */
+    parameters mainData
+    (
+        nContainer type:#node
+    )
     /** Parameters for Spline Rollout */
     parameters splineData rollout:splineRollout
     (
@@ -68,6 +72,26 @@ version:1
     /*==================================================================================================================
         PLUGIN METHODS
     */
+    /**
+        Returns the container for all objects for the wire. If the container doesn't exist, then it is automatically
+        created.
+
+        @return Container Node
+     */
+    fn getContainer =
+    (
+        local nodeList = for n in $.children where classof n == Point collect n
+        if nodeList.count > 0 then nodeList[1] else 
+        (
+            local n = Point()
+            n.transform = $.transform
+            n.parent = $
+            n.name = ($.name + ".container")
+            n.centermarker = n.axistripod = n.cross = n.box = false
+            $.layer.addnode n
+            n -- return
+        )
+    )
     /**
         Returns array of layer names.
 
@@ -170,7 +194,8 @@ version:1
     (
         if nSpline != undefined then
         (
-            for m in nSpline.modifiers do deleteModifier nSpline m
+            local removeList = for m in nSpline.modifiers collect m
+            for m in removeList do deleteModifier nSpline m
         )
     )
 
@@ -179,8 +204,9 @@ version:1
      */
     fn destroyBones =
     (
-        for n in ntBones do delete n
+        local deleteList = for n in ntBones collect n
         ntBones = #()
+        for i = 1 to deleteList.count do delete deleteList[i]
     )
 
     /**
@@ -188,8 +214,9 @@ version:1
      */
     fn destroyConstraints =
     (
-        for n in ntConstraints do delete n
+        local deleteList = for n in ntConstraints collect n
         ntConstraints = #()
+        for n in (deleteList as array) do delete n
     )
 
     /**
@@ -227,7 +254,6 @@ version:1
         edittext ui_etPrefix "" width:140
         dropdownlist ui_ddLayer "Layer"
         spinner ui_spinWireWidth "Wire Width" range:[0.001, 99999999, fWireWidth] scale:0.1 align:#right
-        button ui_butUpdate "Update" enabled:false
 
         -- METHODS
         fn refreshPrefix = 
@@ -235,20 +261,27 @@ version:1
             if bSplinePrefix == true then sSplinePrefix = $.name
             ui_etPrefix.readOnly = bSplinePrefix
         )
-        fn refreshButton = (ui_butUpdate.enabled = (nSpline != undefined))
+        fn refresh = ()
 
         -- EVENTS
-        on splineRollout open do (setupDropdown ui_ddLayer sSplineLayer; refreshPrefix(); refreshButton())
-        on ui_pickSplineObj picked obj do (refreshButton(); bonesRollout.refresh())
+        on splineRollout open do (setupDropdown ui_ddLayer sSplineLayer; refreshPrefix(); refresh())
+        on ui_pickSplineObj picked obj do 
+        (
+            nSpline.parent = getContainer()
+            refresh()
+            bonesRollout.refresh()
+            mainRollout.refresh()
+        )
         on ui_pickSplineObj rightClick do
         (
+            if nSpline != undefined then nSpline.parent = undefined
             ui_pickSplineObj.object = nSpline = undefined
-            refreshButton()
+            refresh()
             bonesRollout.refresh()
+            mainRollout.refresh()
         )
         on ui_chkUsePrefix changed val do (refreshPrefix())
         on ui_ddLayer selected index do (sSplineLayer = ui_ddLayer.selected)
-        on ui_butUpdate pressed do (builder.modifyWireSpline nSpline ntBones (buildSplineParams()))
     )
 
     /** Rollout for bone controls */
@@ -265,8 +298,6 @@ version:1
         groupBox ui_groupAnchor "Anchors" offset:[0,-40] width:140 height:45
         spinner ui_spinDensity "Density" width:100 align:#right
         spinner ui_spinPadding "Padding" type:#worldUnits width:100 align:#right
-        button ui_butUpdate "Update" width:65 align:#left across:2
-        button ui_butBuild "Build" width:65 align:#right
 
         -- METHODS
         fn refreshPrefix = 
@@ -281,9 +312,6 @@ version:1
             cleanupBadBones()
             ui_multiBones.items = for b in ntBones collect b.name
             ui_butSelect.enabled = false
-            ui_butUpdate.enabled = (ntBones.count > 0)
-            ui_butBuild.enabled = (nSpline != undefined)
-            ui_butBuild.caption = if ntBones.count > 0 then "Rebuild" else "Build"
         )
 
         -- EVENTS
@@ -296,14 +324,6 @@ version:1
             ui_butSelect.enabled = (ui_multiBones.selection.count > 0)
         )
         on ui_chkUsePrefix changed val do (refreshPrefix())
-        on ui_butUpdate pressed do (builder.modifyBones ntBones (buildBoneParams()))
-        on ui_butBuild pressed do
-        (
-            destroyBones()
-            ntBones = builder.buildBones nSpline (buildBoneParams())
-            refresh()
-            constraintsRollout.refresh()
-        )
     )
 
     /** Rollout for constraint controls */
@@ -321,8 +341,6 @@ version:1
         spinner ui_spinTwistSpring "S" range:[0.000, 999999, fTwistSpring] fieldWidth:45
         spinner ui_spinSwingDamping "D" range:[0.000, 999999, fSwingDamping] fieldWidth:45 across:2
         spinner ui_spinTwistDamping "D" range:[0.000, 999999, fTwistDamping] fieldWidth:45
-        button ui_butUpdate "Update" width:65 align:#left across:2
-        button ui_butBuild "Build" width:65 align:#right
 
         -- METHODS
         fn refreshPrefix = 
@@ -337,9 +355,6 @@ version:1
             cleanupBadConstraints()
             ui_multiConstraints.items = for b in ntConstraints collect b.name
             ui_butSelect.enabled = false
-            ui_butUpdate.enabled = (ntConstraints.count > 0)
-            ui_butBuild.enabled = (ntBones.count > 0)
-            ui_butBuild.caption = if ntConstraints.count > 0 then "Rebuild" else "Build"
             ui_aglSwingLimit.degrees = aSwingAngle
             ui_aglTwistLimit.degrees = aTwistAngle
         )
@@ -356,13 +371,6 @@ version:1
         on ui_chkUsePrefix changed val do (refreshPrefix())
         on ui_aglSwingLimit changed val do (aSwingAngle = val)
         on ui_aglTwistLimit changed val do (aTwistAngle = val)
-        on ui_butUpdate pressed do (builder.modifyConstraints ntConstraints ntBones (buildConstraintParams()))
-        on ui_butBuild pressed do
-        (
-            destroyConstraints()
-            ntConstraints = builder.buildConstraints ntBones (buildConstraintParams())
-            refresh()
-        )
     )
 
     /** Rollout for end object controls */
@@ -385,6 +393,7 @@ version:1
             if bAnchorPrefix == true then sAnchorPrefix = $.name
             ui_etPrefix.readOnly = bAnchorPrefix
         )
+        fn refresh = ()
 
         -- EVENTS
         on ui_pickStart rightClick do (ui_pickStart.object = nStartAnchor = undefined)
@@ -395,10 +404,27 @@ version:1
     /** Rollout for main actions */
     rollout mainRollout "Main Actions"
     (
-        button ui_butCreate "Create Wire"
-        button ui_butUpdate "Update Wire"
-        button ui_butDestroy "Destroy Wire"
+        button ui_butCreate "Create Wire" enabled:false
+        button ui_butUpdate "Update Wire" enabled:false
+        button ui_butDestroy "Destroy Wire" enabled:false
 
+        fn refresh =
+        (
+            ui_butCreate.enabled = (nSpline != undefined)
+            ui_butCreate.caption = if ntBones.count > 0 OR ntConstraints.count > 0 then \
+                                        "Re-create Wire" else "Create Wire"
+            ui_butUpdate.enabled = (nSpline != undefined AND (ntBones.count > 0 OR ntConstraints.count > 0))
+            ui_butDestroy.enabled = ((nSpline != undefined AND nSpline.modifiers.count > 0) \
+                                    OR ntBones.count > 0 OR ntConstraints.count > 0)
+        )
+        fn refreshAll =
+        (
+            refresh()
+            splineRollout.refresh()
+            bonesRollout.refresh()
+            constraintsRollout.refresh()
+            anchorObjectRollout.refresh()
+        )
         fn destroy =
         (
             removeAllWireModifiers()
@@ -406,25 +432,30 @@ version:1
             destroyBones()
         )
 
+        on mainRollout open do (refresh())
         on ui_butCreate pressed do 
         (
             destroy()
+            local parentObj = getContainer()
             local wireParams = buildSplineParams()
             local boneParams = buildBoneParams()
             local constraintParams = buildConstraintParams()
-            ntBones = builder.buildBones nSpline boneParams
-            ntConstraints = builder.buildConstraints ntBones constraintParams
-            builder.modifyWireSpline nSpline ntBones wireParams
+            ntBones = builder.buildBones nSpline boneParams parentObj
+            ntConstraints = builder.buildConstraints ntBones constraintParams parentObj
+            builder.modifyWireSpline nSpline ntBones wireParams parentObj
+            refreshAll()
         )
         on ui_butUpdate pressed do
         (
+            local parentObj = getContainer()
             local wireParams = buildSplineParams()
             local boneParams = buildBoneParams()
             local constraintParams = buildConstraintParams()
-            builder.modifyBones ntBones boneParams
-            builder.modifyConstraints ntConstraints ntBones constraintParams
-            builder.modifyWireSpline nSpline ntBones wireParams
+            builder.modifyBones ntBones boneParams parentObj
+            builder.modifyConstraints ntConstraints ntBones constraintParams parentObj
+            builder.modifyWireSpline nSpline ntBones wireParams parentObj
+            refreshAll()
         )
-        on ui_butDestroy pressed do (destroy())
+        on ui_butDestroy pressed do (destroy(); refreshAll())
     )
 )
