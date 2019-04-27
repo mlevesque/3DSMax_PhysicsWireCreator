@@ -447,6 +447,7 @@ version:1
         on mainRollout open do (refresh())
         on ui_butCreate pressed do 
         (
+            local sel = $
             destroy()
             local parentObj = getContainer()
             local wireParams = buildSplineParams()
@@ -456,9 +457,11 @@ version:1
             ntConstraints = builder.buildConstraints ntBones constraintParams parentObj
             builder.modifyWireSpline nSpline ntBones wireParams parentObj
             refreshAll()
+            select sel
         )
         on ui_butUpdate pressed do
         (
+            local sel = $
             local parentObj = getContainer()
             local wireParams = buildSplineParams()
             local boneParams = buildBoneParams()
@@ -467,6 +470,7 @@ version:1
             builder.modifyConstraints ntConstraints ntBones constraintParams parentObj
             builder.modifyWireSpline nSpline ntBones wireParams parentObj
             refreshAll()
+            select sel
         )
         on ui_butDestroy pressed do (destroy(); refreshAll())
     )
