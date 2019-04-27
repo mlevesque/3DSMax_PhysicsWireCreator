@@ -73,6 +73,21 @@ version:1
         PLUGIN METHODS
     */
     /**
+        Filter for spline wire objects. Tests if it is a shape object, or otherwise it it contains the modifiers we
+        would expect the wire spline to have.
+
+        @param obj
+            The object to test.
+
+        @return True if the object is a wire spline. False if not.
+     */
+    fn filterSpline obj = 
+    (
+        IsShapeObject obj \
+            OR (for m in obj.modifiers where (classof m == sweep OR classof m == skin) collect m).count > 0
+    )
+
+    /**
         Returns the container for all objects for the wire. If the container doesn't exist, then it is automatically
         created.
 
@@ -244,9 +259,6 @@ version:1
     /** Rollout for spline controls */
     rollout splineRollout "Spline"
     (
-        -- FILTERS
-        fn filterSpline obj = (IsShapeObject obj)
-
         -- UI ELEMENTS
         pickButton ui_pickSplineObj "Pick Spline" message:"Pick a spline object that will be the wire." \
                                     autoDisplay:true filter:filterSpline width:140
@@ -457,5 +469,20 @@ version:1
             refreshAll()
         )
         on ui_butDestroy pressed do (destroy(); refreshAll())
+    )
+
+    /*==================================================================================================================
+        EVENTS
+    */
+    /**
+        Event for when the modifier has been created on an object. We will attempt to auto pick the wire spline if we
+        can find it already contained within the controller object.
+     */
+    on postCreate do
+    (
+        for con in $.children while nSpline == undefined do (
+            local objList = for obj in con.children where (filterSpline obj) collect obj
+            if objList.count > 0 then nSpline = objList[1]
+        )
     )
 )
