@@ -80,7 +80,7 @@ version:1
 
         @return True if the object is a wire spline. False if not.
      */
-    fn filterSpline obj = 
+    fn __filterSpline obj = 
     (
         IsShapeObject obj \
             OR (for m in obj.modifiers where (classof m == sweep OR classof m == skin) collect m).count > 0
@@ -92,7 +92,7 @@ version:1
 
         @return Container Node
      */
-    fn getContainer =
+    fn __getContainer =
     (
         local nodeList = for n in $.children where classof n == Point collect n
         if nodeList.count > 0 then nodeList[1] else 
@@ -111,7 +111,7 @@ version:1
 
         @return Array of strings.
     */
-    fn getLayerNames =
+    fn __getLayerNames =
     (
         local layerList = #()
         for i = 0 to (LayerManager.count-1) do (append layerList (LayerManager.getLayer i).name)
@@ -129,7 +129,7 @@ version:1
         @return
             Returns true if successful. False if not (the string could not be found in the dropdown).
     */
-    fn setDropdownSelection dropDown selectionText =
+    fn __setDropdownSelection dropDown selectionText =
     (
         local index = findItem dropDown.items selectionText
         if index == 0 then false else (dropDown.selection = index; true)
@@ -145,29 +145,12 @@ version:1
         @param selectionText
             The string to find in the dropdown and select.
     */
-    fn setupDropdown dropDown selectionText =
+    fn __setupDropdown dropDown selectionText =
     (
-        dropDown.items = getLayerNames()
-        local found = setDropdownSelection dropDown selectionText
-        if found == false then found = setDropdownSelection dropDown LayerManager.current.name
+        dropDown.items = __getLayerNames()
+        local found = __setDropdownSelection dropDown selectionText
+        if found == false then found = __setDropdownSelection dropDown LayerManager.current.name
         if found == false then dropDown.selection = 0
-    )
- 
-    /**
-        Sets the layer for the given object to the given layer by name.
-
-        @param obj
-            The obj to place in the given layer.
-        @param layerName
-            The name of the layer to add the given object to.
-
-        @return
-            Returns true if successful. False if not.
-    */
-    fn setLayer obj layerName =
-    (
-        local layerObj = LayerManager.getLayerFromName layerName
-        if layerObj == undefined then false else (layerObj.addnode obj; true)
     )
 
     /**
@@ -175,9 +158,9 @@ version:1
 
         @return PhysicsWireSplineParams
      */
-    fn buildSplineParams =
+    fn __buildSplineParams =
     (
-        PhysicsWireSplineParams fWireWidth sSplinePrefix
+        PhysicsWireSplineParams fWireWidth sSplinePrefix sSplineLayer
     )
  
     /**
@@ -185,9 +168,9 @@ version:1
 
         @return PhysicsWireBoneParams
      */
-    fn buildBoneParams =
+    fn __buildBoneParams =
     (
-        PhysicsWireBoneParams bStartAnchor bEndAnchor fWireWidth fCollisionPadding fDensity sBonePrefix
+        PhysicsWireBoneParams bStartAnchor bEndAnchor fWireWidth fCollisionPadding fDensity sBonePrefix sBoneLayer
     )
 
     /**
@@ -195,16 +178,16 @@ version:1
 
         @return PhysicsWireConstraintParams
      */
-    fn buildConstraintParams =
+    fn __buildConstraintParams =
     (
         PhysicsWireConstraintParams aSwingAngle fSwingSpring fSwingDamping aTwistAngle fTwistSpring fTwistDamping \
-                                    fWireWidth sConstraintPrefix
+                                    fWireWidth sConstraintPrefix sConstraintLayer
     )
 
     /**
         Deletes all the modifiers from the spline object.
      */
-    fn removeAllWireModifiers =
+    fn __removeAllWireModifiers =
     (
         if nSpline != undefined then
         (
@@ -216,7 +199,7 @@ version:1
     /**
         Destroys all the bones.
      */
-    fn destroyBones =
+    fn __destroyBones =
     (
         local deleteList = for n in ntBones collect n
         ntBones = #()
@@ -226,7 +209,7 @@ version:1
     /**
         Destroys all the constraints.
      */
-    fn destroyConstraints =
+    fn __destroyConstraints =
     (
         local deleteList = for n in ntConstraints collect n
         ntConstraints = #()
@@ -236,7 +219,7 @@ version:1
     /**
         Removes missing bones from the list. This can happen if the bones were destroyed manually.
      */
-    fn cleanupBadBones =
+    fn __cleanupBadBones =
     (
         local toDelete = for i = ntBones.count to 1 by -1 where ntBones[i] == undefined collect i
         for i in toDelete do deleteItem ntBones i
@@ -245,10 +228,122 @@ version:1
     /**
         Removes missing constraints from the list. This can happen if the constraints were destroyed manually.
      */
-    fn cleanupBadConstraints =
+    fn __cleanupBadConstraints =
     (
         local toDelete = for i = ntConstraints.count to 1 by -1 where ntConstraints[i] == undefined collect i
         for i in toDelete do deleteItem ntConstraints i
+    )
+
+    /**
+        Detaches the old anchor objects from the bones. If there are no old anchor objects, then it will detach the
+        current anchor objects.
+     */
+    fn __detachOldAnchors =
+    (
+        -- this affects old anchors. If there are no old anchors, then we must be working with the same anchor
+        --  objects, we we will want to detach those
+        if nOldStartAnchor == undefined then nOldStartAnchor = nStartAnchor
+        if nOldEndAnchor == undefined then nOldEndAnchor = nEndAnchor
+
+        -- perform detachment
+        local hasBone = ntBones != undefined AND ntBones.count > 0
+        if nOldStartAnchor != undefined AND hasBone then builder.detachAnchor nOldStartAnchor ntBones[1]
+        if nOldEndAnchor != undefined AND hasBone then builder.detachAnchor nOldEndAnchor ntBones[ntBones.count]
+
+        -- clear out old anchors
+        nOldStartAnchor = undefined
+        nOldEndAnchor = undefined
+    )
+
+    /**
+        Attaches the current anchor objects to the end bones.
+     */
+    fn __attachNewAnchors =
+    (
+        local hasBones = ntBones != undefined AND ntBones.count > 0
+        if nStartAnchor != undefined AND hasBones then
+        (
+            builder.attachAnchor nStartAnchor ntBones[1] bStartAnchor
+        )
+        if nEndAnchor != undefined AND hasBones then
+        (
+            builder.attachAnchor nEndAnchor ntBones[ntBones.count] bEndAnchor
+        )
+    )
+
+
+    /**
+        Destroys all bones and constraints, removes spline modifiers, and detaches the anchor objects.
+     */
+    fn destroyWire =
+    (
+        -- remove anchor constraints
+        __detachOldAnchors()
+
+        -- remove spline modifiers
+        __removeAllWireModifiers()
+
+        -- destroy bones and constraints
+        __destroyConstraints()
+        __destroyBones()
+    )
+
+    /**
+        Will destroy the old wire elements and build the wire with new elements using the given parameters
+
+        @param splineParams
+            The parameters for creating the modifiers for the spline.
+        @param boneParams
+            The parameters for creating the bones and rigid bodies.
+        @param constraintParams
+            The parameters for creating the constraints.
+        @param layerParams
+            The parameters for assigning the wire elements to certain layers.
+     */
+    fn createWire splineParams boneParams constraintParams layerParams =
+    (
+        -- destroy old stuff
+        destroyWire()
+
+        -- get the constainer
+        local parentObj = __getContainer()
+
+        -- build bones and constraints
+        ntBones = builder.buildBones nSpline boneParams parentObj
+        ntConstraints = builder.buildConstraints ntBones constraintParams parentObj
+
+        -- setup spline modifiers
+        builder.modifyWireSpline nSpline ntBones splineParams parentObj
+
+        -- setup anchor objects
+        __attachNewAnchors()
+    )
+
+    /**
+        Modifies the existing wire elements using the given parameters.
+
+        @param splineParams
+            The parameters for modifying the modifiers for the spline.
+        @param boneParams
+            The parameters for modifying the bones and rigid bodies.
+        @param constraintParams
+            The parameters for modifying the constraints.
+        @param layerParams
+            The parameters for assigning the wire elements to certain layers.
+     */
+    fn updateWire splineParams boneParams constraintParams layerParams =
+    (
+        -- get container
+        local parentObj = __getContainer()
+
+        -- modify bones, constraints, and spline
+        builder.modifyBones ntBones boneParams parentObj
+        builder.modifyConstraints ntConstraints ntBones constraintParams parentObj
+        builder.modifyWireSpline nSpline ntBones splineParams parentObj
+
+        -- setup anchors
+        __detachOldAnchors()
+        __attachNewAnchors()
     )
 
 
@@ -260,7 +355,7 @@ version:1
     (
         -- UI ELEMENTS
         pickButton ui_pickSplineObj "Pick Spline" message:"Pick a spline object that will be the wire." \
-                                    autoDisplay:true filter:filterSpline width:140
+                                    autoDisplay:true filter:__filterSpline width:140
         checkbox ui_chkUsePrefix "Use Controller Name"
         edittext ui_etPrefix "" width:140
         dropdownlist ui_ddLayer "Layer"
@@ -275,10 +370,16 @@ version:1
         fn refresh = ()
 
         -- EVENTS
-        on splineRollout open do (setupDropdown ui_ddLayer sSplineLayer; refreshPrefix(); refresh())
+        on splineRollout open do 
+        (
+            __setupDropdown ui_ddLayer sSplineLayer
+            if sSplineLayer == undefined then sSplineLayer = ui_ddLayer.selected
+            refreshPrefix()
+            refresh()
+        )
         on ui_pickSplineObj picked obj do 
         (
-            nSpline.parent = getContainer()
+            nSpline.parent = __getContainer()
             refresh()
             bonesRollout.refresh()
             mainRollout.refresh()
@@ -319,8 +420,9 @@ version:1
         fn refresh =
         (
             refreshPrefix()
-            setupDropdown ui_ddLayer sBoneLayer
-            cleanupBadBones()
+            __setupDropdown ui_ddLayer sBoneLayer
+            if sBoneLayer == undefined then sBoneLayer = ui_ddLayer.selected
+            __cleanupBadBones()
             ui_multiBones.items = for b in ntBones collect b.name
             ui_butSelect.enabled = false
         )
@@ -335,6 +437,7 @@ version:1
             ui_butSelect.enabled = (ui_multiBones.selection.count > 0)
         )
         on ui_chkUsePrefix changed val do (refreshPrefix())
+        on ui_ddLayer selected index do (sBoneLayer = ui_ddLayer.selected)
     )
 
     /** Rollout for constraint controls */
@@ -362,8 +465,9 @@ version:1
         fn refresh =
         (
             refreshPrefix()
-            setupDropdown ui_ddLayer sConstraintLayer
-            cleanupBadConstraints()
+            __setupDropdown ui_ddLayer sConstraintLayer
+            if sConstraintLayer == undefined then sConstraintLayer = ui_ddLayer.selected
+            __cleanupBadConstraints()
             ui_multiConstraints.items = for b in ntConstraints collect b.name
             ui_butSelect.enabled = false
             ui_aglSwingLimit.degrees = aSwingAngle
@@ -382,6 +486,7 @@ version:1
         on ui_chkUsePrefix changed val do (refreshPrefix())
         on ui_aglSwingLimit changed val do (aSwingAngle = val)
         on ui_aglTwistLimit changed val do (aTwistAngle = val)
+        on ui_ddLayer selected index do (sConstraintLayer = ui_ddLayer.selected)
     )
 
     /** Rollout for end object controls */
@@ -427,46 +532,6 @@ version:1
             constraintsRollout.refresh()
             anchorObjectRollout.refresh()
         )
-        fn detachOldAnchors =
-        (
-            -- this affects old anchors. If there are no old anchors, then we must be working with the same anchor
-            --  objects, we we will want to detach those
-            if nOldStartAnchor == undefined then nOldStartAnchor = nStartAnchor
-            if nOldEndAnchor == undefined then nOldEndAnchor = nEndAnchor
-
-            -- perform detachment
-            local hasBone = ntBones != undefined AND ntBones.count > 0
-            if nOldStartAnchor != undefined AND hasBone then builder.detachAnchor nOldStartAnchor ntBones[1]
-            if nOldEndAnchor != undefined AND hasBone then builder.detachAnchor nOldEndAnchor ntBones[ntBones.count]
-
-            -- clear out old anchors
-            nOldStartAnchor = undefined
-            nOldEndAnchor = undefined
-        )
-        fn attachNewAnchors =
-        (
-            local hasBones = ntBones != undefined AND ntBones.count > 0
-            if nStartAnchor != undefined AND hasBones then
-            (
-                builder.attachAnchor nStartAnchor ntBones[1] bStartAnchor
-            )
-            if nEndAnchor != undefined AND hasBones then
-            (
-                builder.attachAnchor nEndAnchor ntBones[ntBones.count] bEndAnchor
-            )
-        )
-        fn destroy =
-        (
-            -- remove anchor constraints
-            detachOldAnchors()
-
-            -- remove spline modifiers
-            removeAllWireModifiers()
-
-            -- destroy bones and constraints
-            destroyConstraints()
-            destroyBones()
-        )
 
         on mainRollout open do (refresh())
         on ui_butCreate pressed do 
@@ -474,24 +539,13 @@ version:1
             -- store this selected object because the skinning process causes teh spline to be selected
             local sel = $
 
-            -- destroy old stuff
-            destroy()
-
             -- get param data
-            local parentObj = getContainer()
-            local wireParams = buildSplineParams()
-            local boneParams = buildBoneParams()
-            local constraintParams = buildConstraintParams()
+            local splineParams = __buildSplineParams()
+            local boneParams = __buildBoneParams()
+            local constraintParams = __buildConstraintParams()
 
-            -- build bones and constraints
-            ntBones = builder.buildBones nSpline boneParams parentObj
-            ntConstraints = builder.buildConstraints ntBones constraintParams parentObj
-
-            -- setup spline modifiers
-            builder.modifyWireSpline nSpline ntBones wireParams parentObj
-
-            -- setup anchor objects
-            attachNewAnchors()
+            -- perform creation
+            createWire splineParams boneParams constraintParams layerParams
 
             -- re-select the controller object
             select sel
@@ -502,19 +556,12 @@ version:1
             local sel = $
 
             -- get param data
-            local parentObj = getContainer()
-            local wireParams = buildSplineParams()
-            local boneParams = buildBoneParams()
-            local constraintParams = buildConstraintParams()
+            local splineParams = __buildSplineParams()
+            local boneParams = __buildBoneParams()
+            local constraintParams = __buildConstraintParams()
 
-            -- modify bones, constraints, and spline
-            builder.modifyBones ntBones boneParams parentObj
-            builder.modifyConstraints ntConstraints ntBones constraintParams parentObj
-            builder.modifyWireSpline nSpline ntBones wireParams parentObj
-
-            -- setup anchors
-            detachOldAnchors()
-            attachNewAnchors()
+            -- perform modifications
+            updateWire splineParams boneParams constraintParams layerParams
 
             -- re-select the controller object
             select sel
@@ -532,7 +579,7 @@ version:1
     on postCreate do
     (
         for con in $.children while nSpline == undefined do (
-            local objList = for obj in con.children where (filterSpline obj) collect obj
+            local objList = for obj in con.children where (__filterSpline obj) collect obj
             if objList.count > 0 then nSpline = objList[1]
         )
     )

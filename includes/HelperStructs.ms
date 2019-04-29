@@ -6,7 +6,8 @@ struct PhysicsWireBoneParams
     fWireWidth,
     fCollisionPadding,
     fDensity,
-    sPrefixName
+    sPrefixName,
+    sBoneLayer
 )
 
 /** Params for modifying constraint properties */
@@ -19,12 +20,14 @@ struct PhysicsWireConstraintParams
     fTwistSpring,
     fTwistDampening,
     fWireWidth,
-    sPrefixName
+    sPrefixName,
+    sConstraintLayer
 )
 
 /** Params for modifying spline properties */
 struct PhysicsWireSplineParams
 (
     fWireWidth,
-    sPrefixName
+    sPrefixName,
+    sSplineLayer
 )

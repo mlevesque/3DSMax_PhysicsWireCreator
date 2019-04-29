@@ -124,6 +124,23 @@ struct PhysicsWireBuilder
         )
     ),
 
+    /**
+        Sets the layer for the given object to the given layer by name.
+
+        @param obj
+            The obj to place in the given layer.
+        @param layerName
+            The name of the layer to add the given object to.
+
+        @return
+            Returns true if successful. False if not.
+    */
+    fn __setLayer obj layerName =
+    (
+        local layerObj = LayerManager.getLayerFromName layerName
+        if layerObj == undefined then false else (layerObj.addnode obj; true)
+    ),
+
     
     public
     /*==================================================================================================================
@@ -186,6 +203,9 @@ struct PhysicsWireBuilder
             sName += if i == arrBones.count then ".nub" else (formattedPrint i format:"02u")
             boneObj.name = sName
 
+            -- set layer
+            __setLayer boneObj structBoneParams.sBoneLayer
+
             -- set parent
             boneObj.parent = parentObj
         )
@@ -243,6 +263,9 @@ struct PhysicsWireBuilder
             -- set name
             c.name = (structConstraintParams.sPrefixName + ".constraint" + (formattedPrint i format:"02u"))
 
+            -- set layer
+            __setLayer c structConstraintParams.sConstraintLayer
+
             -- set parent
             c.parent = parentObj
 
@@ -295,6 +318,9 @@ struct PhysicsWireBuilder
 
         -- set name
         splineObj.name = (structWireParams.sPrefixName + ".spline")
+
+        -- set layer
+        __setLayer splineObj structWireParams.sSplineLayer
 
         -- set parent
         splineObj.parent = parentObj
