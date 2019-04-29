@@ -88,7 +88,41 @@ struct PhysicsWireBuilder
 		
 		-- Set obj skin modifier as current object in modpanel if needed.
 		if ModPanel.GetCurrentObject() != obj.skin do ModPanel.SetCurrentObject obj.skin
-	),
+    ),
+    
+    /**
+        Detaches the given target from the given source transform controller, if the target was appended to the control.
+
+        @param source
+            The source object that has the constraints.
+        @param sourceTransformController
+            A transform controller for the given source object.
+        @param target
+            The target to detach from the control.
+     */
+    fn __detachConstraint source sourceTransformController target =
+    (
+        local constraintControl = sourceTransformController
+        local isPos = (isKindOf sourceTransformController Position_Constraint)
+        local isRot = (isKindOf sourceTransformController Orientation_Constraint)
+        if isPos OR isRot then
+        (
+            -- if the constraint only has the one target, then reset the controller
+            if (constraintControl.getNumTargets() == 1) AND (constraintControl.getNode 1) == target then
+            (
+                if isPos then source.pos.controller = Position_XYZ() \
+                else source.rotation.controller = Euler_XYZ()
+            )
+            else
+            (
+                -- remove only the target
+                for i = 1 to constraintControl.getNumTargets() do
+                (
+                    if (constraintControl.getNode i) == target then constraintControl.deleteTarget i
+                )
+            )
+        )
+    ),
 
     
     public
@@ -127,17 +161,30 @@ struct PhysicsWireBuilder
             local shouldBeKinematic = (i == 1 AND structBoneParams.bStartAnchor == true) \              -- first bone
                                     OR (i == arrBones.count AND structBoneParams.bEndAnchor == true)    -- last bone
             if shouldBeKinematic == true then rigidBodyMod.type = 2 else rigidBodyMod.type = 1
-            rigidBodyMod.meshType = 3 --capsule
-            rigidBodyMod.meshRadius = wireRadius + structBoneParams.fCollisionPadding
-            rigidBodyMod.meshHeight = boneObj.length - (rigidBodyMod.meshRadius * 4)
             rigidBodyMod.density = structBoneParams.fDensity
 
-            -- position and orient collision
-            local trans = Matrix3 1; rotateY trans 90; trans.translation = [rigidBodyMod.meshRadius, 0, 0]
-            rigidBodyMod.SetRBMeshTM 1 trans
+            -- add capsule collision for all bones except for the nub
+            if i < arrBones.count then
+            (
+                rigidBodyMod.meshType = 3 --capsule
+                rigidBodyMod.meshRadius = wireRadius + structBoneParams.fCollisionPadding
+                rigidBodyMod.meshHeight = boneObj.length - (rigidBodyMod.meshRadius * 4)
+
+                -- position and orient collision
+                local trans = Matrix3 1; rotateY trans 90; trans.translation = [rigidBodyMod.meshRadius, 0, 0]
+                rigidBodyMod.SetRBMeshTM 1 trans
+            )
+            -- bone nub will use a sphere
+            else
+            (
+                rigidBodyMod.meshType = 1 -- sphere
+                rigidBodyMod.meshRadius = wireRadius
+            )
 
             -- set name
-            boneObj.name = (structBoneParams.sPrefixName + ".bone" + (formattedPrint i format:"02u"))
+            local sName = (structBoneParams.sPrefixName + ".bone")
+            sName += if i == arrBones.count then ".nub" else (formattedPrint i format:"02u")
+            boneObj.name = sName
 
             -- set parent
             boneObj.parent = parentObj
@@ -174,19 +221,21 @@ struct PhysicsWireBuilder
             c.body0 = firstBone
             c.body1 = secondBone
             c.breakable = false
-            c.helperSize = 0.5
+            c.helperSize = structConstraintParams.fWireWidth
 
             -- positional movement
             c.linearModeX = c.linearModeY = c.linearModeZ = 1 -- locked
 
             -- limit swing movement
-			c.swing1Mode = c.swing2Mode = 2 -- limited
+            --  (The last constraint, between the last skinable bone and the bone nub will be locked)
+			c.swing1Mode = c.swing2Mode = if i == arrConstraints.count then 1 else 2
 			c.swing1Angle = c.swing2Angle = structConstraintParams.fSwingAngle
 			c.swing1Spring = c.swing2Spring = c.swingSpring = structConstraintParams.fSwingSpring
 			c.swing1Damping = c.swing2Damping = c.swingDamping = structConstraintParams.fSwingDampening
 			
-			-- limit twist movement
-			c.twistMode = 2 -- limited
+            -- limit twist movement
+            --  (The last constraint, between the last skinable bone and the bone nub will be locked)
+			c.twistMode = if i == arrConstraints.count then 1 else 2
 			c.twistAngleLow = c.twistAngleHigh = structConstraintParams.fTwistAngle
 			c.twistSpringLow = c.twistSpringHigh = c.twistSpring = structConstraintParams.fTwistSpring
             c.twistDampingLow = c.twistDampingHigh = c.twistDamping = structConstraintParams.fTwistDampening
@@ -224,12 +273,13 @@ struct PhysicsWireBuilder
         local skinMod = __getModifier splineObj Skin
         if skinMod == undefined then (skinMod = Skin(); addModifier splineObj skinMod before:1)
 
-        -- add bones to skin modifier
+        -- add bones to skin modifier (except for bone nub)
         __prepareMaxForSkinOps splineObj
-        for i = 1 to arrBones.count do
+        local lastBoneIndex = arrBones.count - 1 -- don't include bone nub
+        for i = 1 to lastBoneIndex do
         (
             -- only update system once we add the last bone
-            local last = if i == arrBones.count then -1 else 0
+            local last = if i == lastBoneIndex then -1 else 0
             skinOps.addbone skinMod arrBones[i] last
         )
 
@@ -248,6 +298,67 @@ struct PhysicsWireBuilder
 
         -- set parent
         splineObj.parent = parentObj
+    ),
+
+    /**
+        Detaches any kind of position and orientation constraint between the given anchor object and bone object.
+
+        @param anchorObj
+            The anchor object that would be constrained to/from one end of the wire.
+        @param boneObj
+            The first or last bone that would be constrained to/from an anchor object.
+     */
+    fn detachAnchor anchorObj boneObj =
+    (
+        -- detach bone from anchor
+        local mat = anchorObj.transform
+        __detachConstraint anchorObj anchorObj.pos.controller boneObj
+        __detachConstraint anchorObj anchorObj.rotation.controller boneObj
+        anchorObj.transform = mat
+
+        -- detach anchor from bone
+        -- we need to reapply the transform because reseting a bone's controllers causes it's position and rotation
+        --   to be wonky
+        mat = boneObj.transform 
+        __detachConstraint boneObj boneObj.pos.controller anchorObj
+        __detachConstraint boneObj boneObj.rotation.controller anchorObj
+        boneObj.transform = mat
+    ),
+
+    /**
+        Applies a position and orientation constraint between the anchor object and bone object. Which one getting
+        constrained to the other depends on what value the given anchor is.
+        If it is true, then the bone will be constrained to the anchor.
+        If it is false, then the anchor will be constrained to the bone.
+
+        @param anchorObj
+            The anchor object to be attached to an end of the wire.
+        @param boneObj
+            Either the first or last bone in the wire.
+        @param anchorVal
+            Boolean value of whether the bone is anchored or not.
+     */
+    fn attachAnchor anchorObj boneObj anchorVal =
+    (
+        -- determine which object is constrained to what.
+        --   If bone rigid body is kinematic, then bone will be constrained to anchor
+        --   Otherwise anchor will be constrained to bone
+        local source = if anchorVal then boneObj else anchorObj
+        local target = if anchorVal then anchorObj else boneObj
+
+        -- constrain position
+        local posCtrl = Position_Constraint()
+        source.pos.controller = posCtrl
+        posCtrl.relative = true
+        local posConstraintInterface = posCtrl.constraints
+        posConstraintInterface.appendTarget target 20
+
+        -- constrain rotation
+        local rotCtrl = Orientation_Constraint()
+        source.rotation.controller = rotCtrl
+        rotCtrl.relative = true
+        local rotConstraintInterface = rotCtrl.constraints
+        rotConstraintInterface.appendTarget target 20
     ),
 
     /**
@@ -271,11 +382,25 @@ struct PhysicsWireBuilder
         -- create a bone for each segment of points
         arrBones = #()
         local pointCount = arrPoints.count - 1
-		for i = 1 to pointCount do
+		for i = 1 to pointCount by 1 do
 		(
             local zAxis = __buildBoneZAxis arrPoints[i] arrPoints[i+1]
             local boneObj = BoneSys.createBone arrPoints[i] arrPoints[i+1] zAxis
 			append arrBones boneObj
+        )
+
+        -- build bone nub
+        if arrPoints.count > 1 then
+        (
+            -- calculate the end point
+            local endPos = normalize (arrPoints[arrPoints.count] - arrPoints[arrPoints.count-1])
+            endPos = structBoneParams.fWireWidth * endPos
+            endPos = arrPoints[arrPoints.count] + endPos
+
+            -- create bone nub
+            local zAxis = __buildBoneZAxis arrPoints[arrPoints.count] endPos
+            local boneObj = BoneSys.createBone arrPoints[arrPoints.count] endPos zAxis
+            append arrBones boneObj
         )
 
         -- modifiy properties

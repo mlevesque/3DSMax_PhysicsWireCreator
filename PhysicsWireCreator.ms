@@ -63,9 +63,8 @@ version:1
     (
         nStartAnchor type:#node ui:ui_pickStart
         nEndAnchor type:#node ui:ui_pickEnd
-        bAnchorPrefix type:#boolean default:true ui:ui_chkUsePrefix
-        sAnchorPrefix type:#string default:"" ui:ui_etPrefix
-        sAnchorLayer type:#string
+        nOldStartAnchor type:#node
+        nOldEndAnchor type:#node
     )
 
 
@@ -199,7 +198,7 @@ version:1
     fn buildConstraintParams =
     (
         PhysicsWireConstraintParams aSwingAngle fSwingSpring fSwingDamping aTwistAngle fTwistSpring fTwistDamping \
-                                    sConstraintPrefix
+                                    fWireWidth sConstraintPrefix
     )
 
     /**
@@ -388,29 +387,20 @@ version:1
     /** Rollout for end object controls */
     rollout anchorObjectRollout "Anchor Object"
     (
-        -- FILTERS
-        fn filterRigidBody obj = ((for m in obj.modifiers where classof m == MassFX_RBody collect m).count > 0)
-
         -- UI ELEMENTS
         pickButton ui_pickStart "Pick Start Anchor" message:"Pick an rigid body object that will be the start anchor." \
-                                    filter:filterRigidBody autoDisplay:true width:140
+                                    autoDisplay:true width:140
         pickButton ui_pickEnd "Pick End Anchor" message:"Pick an rigid body object that will be the end anchor." \
-                                    filter:filterRigidBody autoDisplay:true width:140
-        checkbox ui_chkUsePrefix "Use Controller Name"
-        edittext ui_etPrefix "" width:140
+                                    autoDisplay:true width:140
 
         -- METHODS
-        fn refreshPrefix = 
-        (
-            if bAnchorPrefix == true then sAnchorPrefix = $.name
-            ui_etPrefix.readOnly = bAnchorPrefix
-        )
         fn refresh = ()
 
         -- EVENTS
-        on ui_pickStart rightClick do (ui_pickStart.object = nStartAnchor = undefined)
-        on ui_pickEnd rightClick do (ui_pickEnd.object = nEndAnchor = undefined)
-        on ui_chkUsePrefix changed val do (refreshPrefix())
+        on ui_pickStart picked obj do (nOldStartAnchor = nStartAnchor)
+        on ui_pickStart rightClick do (nOldStartAnchor = nStartAnchor; ui_pickStart.object = nStartAnchor = undefined)
+        on ui_pickEnd picked obj do (nOldEndAnchor = nEndAnchor)
+        on ui_pickEnd rightClick do (nOldEndAnchor = nEndAnchor; ui_pickEnd.object = nEndAnchor = undefined)
     )
 
     /** Rollout for main actions */
@@ -437,9 +427,43 @@ version:1
             constraintsRollout.refresh()
             anchorObjectRollout.refresh()
         )
+        fn detachOldAnchors =
+        (
+            -- this affects old anchors. If there are no old anchors, then we must be working with the same anchor
+            --  objects, we we will want to detach those
+            if nOldStartAnchor == undefined then nOldStartAnchor = nStartAnchor
+            if nOldEndAnchor == undefined then nOldEndAnchor = nEndAnchor
+
+            -- perform detachment
+            local hasBone = ntBones != undefined AND ntBones.count > 0
+            if nOldStartAnchor != undefined AND hasBone then builder.detachAnchor nOldStartAnchor ntBones[1]
+            if nOldEndAnchor != undefined AND hasBone then builder.detachAnchor nOldEndAnchor ntBones[ntBones.count]
+
+            -- clear out old anchors
+            nOldStartAnchor = undefined
+            nOldEndAnchor = undefined
+        )
+        fn attachNewAnchors =
+        (
+            local hasBones = ntBones != undefined AND ntBones.count > 0
+            if nStartAnchor != undefined AND hasBones then
+            (
+                builder.attachAnchor nStartAnchor ntBones[1] bStartAnchor
+            )
+            if nEndAnchor != undefined AND hasBones then
+            (
+                builder.attachAnchor nEndAnchor ntBones[ntBones.count] bEndAnchor
+            )
+        )
         fn destroy =
         (
+            -- remove anchor constraints
+            detachOldAnchors()
+
+            -- remove spline modifiers
             removeAllWireModifiers()
+
+            -- destroy bones and constraints
             destroyConstraints()
             destroyBones()
         )
@@ -447,29 +471,52 @@ version:1
         on mainRollout open do (refresh())
         on ui_butCreate pressed do 
         (
+            -- store this selected object because the skinning process causes teh spline to be selected
             local sel = $
+
+            -- destroy old stuff
             destroy()
+
+            -- get param data
             local parentObj = getContainer()
             local wireParams = buildSplineParams()
             local boneParams = buildBoneParams()
             local constraintParams = buildConstraintParams()
+
+            -- build bones and constraints
             ntBones = builder.buildBones nSpline boneParams parentObj
             ntConstraints = builder.buildConstraints ntBones constraintParams parentObj
+
+            -- setup spline modifiers
             builder.modifyWireSpline nSpline ntBones wireParams parentObj
-            refreshAll()
+
+            -- setup anchor objects
+            attachNewAnchors()
+
+            -- re-select the controller object
             select sel
         )
         on ui_butUpdate pressed do
         (
+            -- store this selected object because the skinning process causes teh spline to be selected
             local sel = $
+
+            -- get param data
             local parentObj = getContainer()
             local wireParams = buildSplineParams()
             local boneParams = buildBoneParams()
             local constraintParams = buildConstraintParams()
+
+            -- modify bones, constraints, and spline
             builder.modifyBones ntBones boneParams parentObj
             builder.modifyConstraints ntConstraints ntBones constraintParams parentObj
             builder.modifyWireSpline nSpline ntBones wireParams parentObj
-            refreshAll()
+
+            -- setup anchors
+            detachOldAnchors()
+            attachNewAnchors()
+
+            -- re-select the controller object
             select sel
         )
         on ui_butDestroy pressed do (destroy(); refreshAll())

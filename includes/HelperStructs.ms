@@ -18,6 +18,7 @@ struct PhysicsWireConstraintParams
     fTwistAngle,
     fTwistSpring,
     fTwistDampening,
+    fWireWidth,
     sPrefixName
 )
 
