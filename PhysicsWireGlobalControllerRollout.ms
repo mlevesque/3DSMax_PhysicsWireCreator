@@ -101,9 +101,36 @@ rollout physicsWireGlobalControllerRollout "Physics Wire Global Controller"
         ui_multiControllers.selection = selectionItems
         refreshButtons()
     )
+    fn refreshControls =
+    (
+        ui_ddSplineLayer.enabled = ui_chkSplineLayer.checked
+        ui_spinWireWidth.enabled = ui_chkWireWidth.checked
+        ui_ddBoneLayer.enabled = ui_chkBoneLayer.checked
+        ui_spinDensity.enabled = ui_chkDensity.checked
+        ui_spinPadding.enabled = ui_chkPadding.checked
+        ui_ddConstraintLayer.enabled = ui_chkConstraintLayer.checked
+        ui_aglSwingLimit.enabled = ui_chkSwingLimit.checked
+        ui_aglTwistLimit.enabled = ui_chkTwistLimit.checked
+        ui_spinSwingSpring.enabled = ui_chkSwingSpring.checked
+        ui_spinTwistSpring.enabled = ui_chkTwistSpring.checked
+        ui_spinSwingDamping.enabled = ui_chkSwingDamping.checked
+        ui_spinTwistDamping.enabled = ui_chkTwistDamping.checked
+    )
+    fn setAllCheckboxes value =
+    (
+        ui_chkSplineLayer.checked = ui_chkWireWidth.checked = value
+        ui_chkBoneLayer.checked = ui_chkDensity.checked = ui_chkPadding.checked = value
+        ui_chkConstraintLayer.checked = ui_chkSwingLimit.checked = ui_chkTwistLimit.checked = value
+        ui_chkSwingSpring.checked = ui_chkTwistSpring.checked = value
+        ui_chkSwingDamping.checked = ui_chkTwistDamping.checked = value
+        refreshControls()
+    )
 
 
+    -- rollout events
     on physicsWireGlobalControllerRollout open do (populateListBox())
+
+    -- list box events
     on ui_multiControllers selectionEnd do (refreshButtons())
     on ui_multiControllers rightClick do (ui_multiControllers.selection = #{}; refreshButtons())
     on ui_multiControllers doubleClicked val do 
@@ -111,6 +138,26 @@ rollout physicsWireGlobalControllerRollout "Physics Wire Global Controller"
         ui_multiControllers.selection = #{1..ui_multiControllers.items.count}
         refreshButtons()
     )
+
+    -- list box button events
     on ui_btnRefresh pressed do (populateListbox())
     on ui_btnSelect pressed do (select (getSelectedObjects()))
+
+    --checkbox events
+    on ui_chkSplineLayer changed val do (refreshControls())
+    on ui_chkWireWidth changed val do (refreshControls())
+    on ui_chkBoneLayer changed val do (refreshControls())
+    on ui_chkDensity changed val do (refreshControls())
+    on ui_chkPadding changed val do (refreshControls())
+    on ui_chkConstraintLayer changed val do (refreshControls())
+    on ui_chkSwingLimit changed val do (refreshControls())
+    on ui_chkTwistLimit changed val do (refreshControls())
+    on ui_chkSwingSpring changed val do (refreshControls())
+    on ui_chkTwistSpring changed val do (refreshControls())
+    on ui_chkSwingDamping changed val do (refreshControls())
+    on ui_chkTwistDamping changed val do (refreshControls())
+
+    -- button events
+    on ui_btnUseAll pressed do (setAllCheckboxes true)
+    on ui_btnUseNone pressed do (setAllCheckboxes false)
 )
