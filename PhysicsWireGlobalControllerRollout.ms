@@ -14,7 +14,8 @@ rollout physicsWireGlobalControllerRollout "Physics Wire Global Controller"
 
     
     multilistbox ui_multiControllers "Wire Controllers" height:10
-    button ui_btnSelect "Select in Scene" enabled:false width:140
+    button ui_btnRefresh "Refresh" width:60 across:2
+    button ui_btnSelect "Select" enabled:false width:60
     button ui_btnPullValues "Pull Values from Selected" enabled:false width:140
 
     checkbox ui_chkSplineLayer "Spline Layer" checked:true offset:[0,40]
@@ -65,7 +66,10 @@ rollout physicsWireGlobalControllerRollout "Physics Wire Global Controller"
 
     fn refreshButtons =
     (
-        ui_btnSelect.enabled = not ui_multiControllers.selection.isEmpty
+        local selectionCount = ui_multiControllers.selection.numberSet
+        ui_btnSelect.enabled = ui_btnCreateSelected.enabled = selectionCount > 0
+        ui_btnUpdateSelected.enabled = ui_btnDestroySelected.enabled = selectionCount > 0
+        ui_btnPullValues.enabled = selectionCount == 1
     )
     fn getSelectedObjects =
     (
@@ -107,5 +111,6 @@ rollout physicsWireGlobalControllerRollout "Physics Wire Global Controller"
         ui_multiControllers.selection = #{1..ui_multiControllers.items.count}
         refreshButtons()
     )
+    on ui_btnRefresh pressed do (populateListbox())
     on ui_btnSelect pressed do (select (getSelectedObjects()))
 )
