@@ -1,6 +1,6 @@
 filein "includes/PhysicsWireBuilder.ms"
 
-plugin modifier phyiscsWireController
+plugin modifier PhysicsWireController
 name:"Physics Wire Controller"
 classID:#(0x5c1773b9, 0x75d4f467)
 replaceUI:off
@@ -87,6 +87,17 @@ version:1
     )
 
     /**
+        Returns the node that this modifier is attached to.
+
+        @return node
+     */
+    fn __getSelf =
+    (
+        local nodes = refs.dependentNodes this
+        if nodes.count > 0 then nodes[1] else undefined
+    )
+
+    /**
         Returns the container for all objects for the wire. If the container doesn't exist, then it is automatically
         created.
 
@@ -94,15 +105,18 @@ version:1
      */
     fn __getContainer =
     (
-        local nodeList = for n in $.children where classof n == Point collect n
+        local self = __getSelf()
+        local nodeList = for n in self.children where classof n == Point collect n
+
+        -- return container if it exists. If it doesn't then create it and return that
         if nodeList.count > 0 then nodeList[1] else 
         (
             local n = Point()
-            n.transform = $.transform
-            n.parent = $
-            n.name = ($.name + ".container")
+            n.transform = self.transform
+            n.parent = self
+            n.name = (self.name + ".container")
             n.centermarker = n.axistripod = n.cross = n.box = false
-            $.layer.addnode n
+            self.layer.addnode n
             n -- return
         )
     )
@@ -364,7 +378,8 @@ version:1
         -- METHODS
         fn refreshPrefix = 
         (
-            if bSplinePrefix == true then sSplinePrefix = $.name
+            local self = __getSelf()
+            if bSplinePrefix == true then sSplinePrefix = self.name
             ui_etPrefix.readOnly = bSplinePrefix
         )
         fn refresh = ()
@@ -414,7 +429,8 @@ version:1
         -- METHODS
         fn refreshPrefix = 
         (
-            if bBonePrefix == true then sBonePrefix = $.name
+            local self = __getSelf()
+            if bBonePrefix == true then sBonePrefix = self.name
             ui_etPrefix.readOnly = bBonePrefix
         )
         fn refresh =
@@ -459,7 +475,8 @@ version:1
         -- METHODS
         fn refreshPrefix = 
         (
-            if bConstraintPrefix == true then sConstraintPrefix = $.name
+            local self = __getSelf()
+            if bConstraintPrefix == true then sConstraintPrefix = self.name
             ui_etPrefix.readOnly = bConstraintPrefix
         )
         fn refresh =
@@ -576,7 +593,7 @@ version:1
         Event for when the modifier has been created on an object. We will attempt to auto pick the wire spline if we
         can find it already contained within the controller object.
      */
-    on postCreate do
+    on create do
     (
         for con in $.children while nSpline == undefined do (
             local objList = for obj in con.children where (__filterSpline obj) collect obj
