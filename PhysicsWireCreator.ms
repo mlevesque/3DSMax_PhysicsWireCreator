@@ -154,37 +154,6 @@ version:1
     )
 
     /**
-        Builds the Spline Params struct and returns it.
-
-        @return PhysicsWireSplineParams
-     */
-    fn __buildSplineParams =
-    (
-        PhysicsWireSplineParams fWireWidth sSplinePrefix sSplineLayer
-    )
- 
-    /**
-        Builds the Bone Params struct and returns it.
-
-        @return PhysicsWireBoneParams
-     */
-    fn __buildBoneParams =
-    (
-        PhysicsWireBoneParams bStartAnchor bEndAnchor fWireWidth fCollisionPadding fDensity sBonePrefix sBoneLayer
-    )
-
-    /**
-        Builds the Constraint Params struct and returns it.
-
-        @return PhysicsWireConstraintParams
-     */
-    fn __buildConstraintParams =
-    (
-        PhysicsWireConstraintParams aSwingAngle fSwingSpring fSwingDamping aTwistAngle fTwistSpring fTwistDamping \
-                                    fWireWidth sConstraintPrefix sConstraintLayer
-    )
-
-    /**
         Deletes all the modifiers from the spline object.
      */
     fn __removeAllWireModifiers =
@@ -272,6 +241,37 @@ version:1
     )
 
 
+    /**
+        Builds the Spline Params struct and returns it.
+
+        @return PhysicsWireSplineParams
+    */
+    fn getSplineData =
+    (
+        PhysicsWireSplineParams fWireWidth sSplinePrefix sSplineLayer
+    )
+
+    /**
+        Builds the Bone Params struct and returns it.
+
+        @return PhysicsWireBoneParams
+    */
+    fn getBoneData =
+    (
+        PhysicsWireBoneParams bStartAnchor bEndAnchor fWireWidth fCollisionPadding fDensity sBonePrefix sBoneLayer
+    )
+
+    /**
+        Builds the Constraint Params struct and returns it.
+
+        @return PhysicsWireConstraintParams
+    */
+    fn getConstraintData =
+    (
+        PhysicsWireConstraintParams aSwingAngle fSwingSpring fSwingDamping aTwistAngle fTwistSpring fTwistDamping \
+                                    fWireWidth sConstraintPrefix sConstraintLayer
+    )
+    
     /**
         Destroys all bones and constraints, removes spline modifiers, and detaches the anchor objects.
      */
@@ -540,9 +540,9 @@ version:1
             local sel = $
 
             -- get param data
-            local splineParams = __buildSplineParams()
-            local boneParams = __buildBoneParams()
-            local constraintParams = __buildConstraintParams()
+            local splineParams = getSplineData()
+            local boneParams = getBoneData()
+            local constraintParams = getConstraintData()
 
             -- perform creation
             createWire splineParams boneParams constraintParams layerParams
@@ -556,9 +556,9 @@ version:1
             local sel = $
 
             -- get param data
-            local splineParams = __buildSplineParams()
-            local boneParams = __buildBoneParams()
-            local constraintParams = __buildConstraintParams()
+            local splineParams = getSplineData()
+            local boneParams = getBoneData()
+            local constraintParams = getConstraintData()
 
             -- perform modifications
             updateWire splineParams boneParams constraintParams layerParams
