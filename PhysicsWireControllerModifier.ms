@@ -1,4 +1,5 @@
 filein "includes/PhysicsWireBuilder.ms"
+filein "includes/PhysicsWireSharedHelpers.ms"
 
 plugin modifier PhysicsWireController
 name:"Physics Wire Controller"
@@ -9,8 +10,10 @@ version:1
 (
     /** The rollouts. Declared here so they can be accessed by all other rollouts. */
     local splineRollout, bonesRollout, constraintsRollout, anchorObjectRollout, mainRollout
-    /** Instance of the helper struct */
+    /** Instance of the builder helper struct */
     local builder = PhysicsWireBuilder()
+    /** Instance of the shared helper struct */
+    local sharedHelpers = PhysicsWireSharedHelpers()
 
 
     /*==================================================================================================================
@@ -119,52 +122,6 @@ version:1
             self.layer.addnode n
             n -- return
         )
-    )
-    /**
-        Returns array of layer names.
-
-        @return Array of strings.
-    */
-    fn __getLayerNames =
-    (
-        local layerList = #()
-        for i = 0 to (LayerManager.count-1) do (append layerList (LayerManager.getLayer i).name)
-        layerList -- return
-    )
- 
-    /**
-        Sets the dropdown selection to the given string for the given dropdown.
-
-        @param dropDown
-            The dropdown UI.
-        @param selectionText
-            The string to find and select in the dropdown.
-
-        @return
-            Returns true if successful. False if not (the string could not be found in the dropdown).
-    */
-    fn __setDropdownSelection dropDown selectionText =
-    (
-        local index = findItem dropDown.items selectionText
-        if index == 0 then false else (dropDown.selection = index; true)
-    )
- 
-    /**
-        Populates the given dropdown and selects the entry matching the given string. If the given string could not be
-        found, then it will try to select the current layer name. If that doesn't work, then will just set selection to
-        zero (nothing).
-
-        @param dropDown
-            The dropdown UI.
-        @param selectionText
-            The string to find in the dropdown and select.
-    */
-    fn __setupDropdown dropDown selectionText =
-    (
-        dropDown.items = __getLayerNames()
-        local found = __setDropdownSelection dropDown selectionText
-        if found == false then found = __setDropdownSelection dropDown LayerManager.current.name
-        if found == false then dropDown.selection = 0
     )
 
     /**
@@ -387,7 +344,7 @@ version:1
         -- EVENTS
         on splineRollout open do 
         (
-            __setupDropdown ui_ddLayer sSplineLayer
+            sharedHelpers.setupDropdownForLayers ui_ddLayer sSplineLayer
             if sSplineLayer == undefined then sSplineLayer = ui_ddLayer.selected
             refreshPrefix()
             refresh()
@@ -436,7 +393,7 @@ version:1
         fn refresh =
         (
             refreshPrefix()
-            __setupDropdown ui_ddLayer sBoneLayer
+            sharedHelpers.setupDropdownForLayers ui_ddLayer sBoneLayer
             if sBoneLayer == undefined then sBoneLayer = ui_ddLayer.selected
             __cleanupBadBones()
             ui_multiBones.items = for b in ntBones collect b.name
@@ -482,7 +439,7 @@ version:1
         fn refresh =
         (
             refreshPrefix()
-            __setupDropdown ui_ddLayer sConstraintLayer
+            sharedHelpers.setupDropdownForLayers ui_ddLayer sConstraintLayer
             if sConstraintLayer == undefined then sConstraintLayer = ui_ddLayer.selected
             __cleanupBadConstraints()
             ui_multiConstraints.items = for b in ntConstraints collect b.name

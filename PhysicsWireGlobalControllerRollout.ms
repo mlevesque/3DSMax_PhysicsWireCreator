@@ -1,5 +1,8 @@
+filein "PhysicsWireControllerModifier.ms"
+
 rollout physicsWireGlobalControllerRollout "Physics Wire Global Controller"
 (
+    -- default values
     local WIRE_WIDTH = units.decodeValue "3.0mm"
     local DENSITY = 4
     local PADDING = units.decodeValue "0.1mm"
@@ -10,20 +13,25 @@ rollout physicsWireGlobalControllerRollout "Physics Wire Global Controller"
     local SWING_DAMPING = 100
     local TWIST_DAMPING = 100
 
+    -- list of all objects that have the wire modifiers
     local m_controllerList = #()
+    local m_helper = PhysicsWireSharedHelpers()
 
     
+    -- wire controller list
     multilistbox ui_multiControllers "Wire Controllers" height:10
     button ui_btnRefresh "Refresh" width:60 across:2
     button ui_btnSelect "Select" enabled:false width:60
     button ui_btnPullValues "Pull Values from Selected" enabled:false width:140
 
+    -- spline config
     checkbox ui_chkSplineLayer "Spline Layer" checked:true offset:[0,40]
     dropdownlist ui_ddSplineLayer ""
     checkbox ui_chkWireWidth "Width" checked:true across:2
     spinner ui_spinWireWidth "" range:[0.001, 99999999, WIRE_WIDTH] scale:0.1 width:70 align:#right type:#worldunits
     groupBox ui_groupSpline "Spline" offset:[-7, -90] width:150 height:90
 
+    -- bone config
     checkbox ui_chkBoneLayer "Bone Layer" checked:true offset:[0,40]
     dropdownlist ui_ddBoneLayer ""
     checkbox ui_chkDensity "Density" checked:true across:2
@@ -32,6 +40,7 @@ rollout physicsWireGlobalControllerRollout "Physics Wire Global Controller"
     spinner ui_spinPadding "" range:[0, 999999, PADDING] type:#worldUnits width:70 align:#right
     groupBox ui_groupBone "Bones" offset:[-7, -110] width:150 height:110
 
+    -- constraint config
     checkbox ui_chkConstraintLayer "Constraint Layer" checked:true offset:[0,40]
     dropdownlist ui_ddConstraintLayer ""
     checkbox ui_chkSwingLimit "Swing" checked:true across:2
@@ -48,17 +57,21 @@ rollout physicsWireGlobalControllerRollout "Physics Wire Global Controller"
     spinner ui_spinTwistDamping "" range:[0.000, 999999, TWIST_DAMPING] fieldWidth:45
     groupBox ui_groupConstraint "Constraints" offset:[-7, -240] width:150 height:240
 
+    -- checkbox control
     button ui_btnUseAll "Use All" width:60 across:2
     button ui_btnUseNone "Use None" width:60
 
+    -- create buttons
     button ui_btnCreateSelected "Create Selected" enabled:false width:140 offset:[0, 40]
     button ui_btnCreateAll "Create All" width:140
     groupBox ui_groupCreate "Create" offset:[-7, -70] width:150 height:70
 
+    -- update buttons
     button ui_btnUpdateSelected "Update Selected" enabled:false width:140 offset:[0, 20]
     button ui_btnUpdateAll "Update All" width:140
     groupBox ui_groupUpdate "Update" offset:[-7, -70] width:150 height:70
 
+    -- destroy buttons
     button ui_btnDestroySelected "Destroy Selected" enabled:false width:140 offset:[0, 20]
     button ui_btnDestroyAll "Destroy All" width:140
     groupBox ui_groupDestroy "Destroy" offset:[-7, -70] width:150 height:70
@@ -101,6 +114,12 @@ rollout physicsWireGlobalControllerRollout "Physics Wire Global Controller"
         ui_multiControllers.selection = selectionItems
         refreshButtons()
     )
+    fn refreshDropdowns =
+    (
+        m_helper.setupDropdownForLayers ui_ddSplineLayer ui_ddSplineLayer.selected
+        m_helper.setupDropdownForLayers ui_ddBoneLayer ui_ddBoneLayer.selected
+        m_helper.setupDropdownForLayers ui_ddConstraintLayer ui_ddConstraintLayer.selected
+    )
     fn refreshControls =
     (
         ui_ddSplineLayer.enabled = ui_chkSplineLayer.checked
@@ -128,7 +147,7 @@ rollout physicsWireGlobalControllerRollout "Physics Wire Global Controller"
 
 
     -- rollout events
-    on physicsWireGlobalControllerRollout open do (populateListBox())
+    on physicsWireGlobalControllerRollout open do (populateListBox(); refreshDropdowns())
 
     -- list box events
     on ui_multiControllers selectionEnd do (refreshButtons())
