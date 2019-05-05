@@ -42,7 +42,7 @@ struct PhysicsWireSharedHelpers
     fn setupDropdownForLayers dropDown selectionLayer =
     (
         dropDown.items = getLayerNames()
-        local found = setDropdownSelection dropDown selectionText
+        local found = setDropdownSelection dropDown selectionLayer
         if found == false then found = setDropdownSelection dropDown LayerManager.current.name
         if found == false then dropDown.selection = 0
     )
