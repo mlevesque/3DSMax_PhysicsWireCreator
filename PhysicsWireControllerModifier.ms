@@ -326,7 +326,8 @@ version:1
         checkbox ui_chkUsePrefix "Use Controller Name"
         edittext ui_etPrefix "" width:140
         dropdownlist ui_ddLayer "Layer"
-        spinner ui_spinWireWidth "Wire Width" range:[0.001, 99999999, fWireWidth] scale:0.1 align:#right
+        spinner ui_spinWireWidth "Wire Width" range:[0.001, 99999999, fWireWidth] scale:0.1 type:#worldunits \
+                                                align:#right
 
         -- METHODS
         fn refreshPrefix = 
