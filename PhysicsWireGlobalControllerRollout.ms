@@ -150,21 +150,38 @@ rollout physicsWireGlobalControllerRollout "Physics Wire Global Controller"
         ui_chkSwingDamping.checked = ui_chkTwistDamping.checked = value
         refreshControls()
     )
+    fn setUIFromParams splineParams boneParams constraintParams =
+    (
+        m_helper.setDropdownSelection ui_ddSplineLayer splineParams.sSplineLayer
+        ui_spinWireWidth.value = splineParams.fWireWidth
+        m_helper.setDropdownSelection ui_ddBoneLayer boneParams.sBoneLayer
+        ui_spinDensity.value = boneParams.fDensity
+        ui_spinPadding.value = boneParams.fCollisionPadding
+        m_helper.setDropdownSelection ui_ddConstraintLayer constraintParams.sConstraintLayer
+        ui_aglSwingLimit.degrees = constraintParams.fSwingAngle
+        ui_aglTwistLimit.degrees = constraintParams.fTwistAngle
+        ui_spinSwingSpring.value = constraintParams.fSwingSpring
+        ui_spinTwistSpring.value = constraintParams.fTwistSpring
+        ui_spinSwingDamping.value = constraintParams.fSwingDampening
+        ui_spinTwistDamping.value = constraintParams.fTwistDampening
+    )
     fn restoreDefaults =
     (
         local currentLayer = LayerManager.current.name
-        m_helper.setDropdownSelection ui_ddSplineLayer currentLayer
-        ui_spinWireWidth.value = WIRE_WIDTH
-        m_helper.setDropdownSelection ui_ddBoneLayer currentLayer
-        ui_spinDensity.value = DENSITY
-        ui_spinPadding.value = PADDING
-        m_helper.setDropdownSelection ui_ddConstraintLayer currentLayer
-        ui_aglSwingLimit.degrees = SWING_LIMIT
-        ui_aglTwistLimit.degrees = TWIST_LIMIT
-        ui_spinSwingSpring.value = SWING_SPRING
-        ui_spinTwistSpring.value = TWIST_SPRING
-        ui_spinSwingDamping.value = SWING_DAMPING
-        ui_spinTwistDamping.value = TWIST_DAMPING
+        local splineParams = PhysicsWireSplineParams WIRE_WIDTH "" currentLayer
+        local boneParams = PhysicsWireBoneParams false false WIRE_WIDTH PADDING DENSITY "" currentLayer
+        local constraintParams = PhysicsWireConstraintParams SWING_LIMIT SWING_SPRING SWING_DAMPING \
+                                                             TWIST_LIMIT TWIST_SPRING TWIST_DAMPING \
+                                                             WIRE_WIDTH "" currentLayer
+        setUIFromParams splineParams boneParams constraintParams
+    )
+    fn setUIToControllerData obj =
+    (
+        local controllerMod = getControllerModifier obj
+        local splineParams = controllerMod.getSplineData()
+        local boneParams = controllerMod.getBoneData()
+        local constraintParams = controllerMod.getConstraintData()
+        setUIFromParams splineParams boneParams constraintParams
     )
 
     -- param building functions
@@ -232,6 +249,11 @@ rollout physicsWireGlobalControllerRollout "Physics Wire Global Controller"
     -- list box button events
     on ui_btnRefresh pressed do (populateListbox())
     on ui_btnSelect pressed do (select (getSelectedObjects()))
+    on ui_btnPullValues pressed do
+    (
+        local objList = getSelectedObjects()
+        if objList.count > 0 then setUIToControllerData objList[1]
+    )
 
     -- checkbox events
     on ui_chkSplineLayer changed val do (refreshControls())
