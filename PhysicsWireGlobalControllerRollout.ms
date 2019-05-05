@@ -60,6 +60,7 @@ rollout physicsWireGlobalControllerRollout "Physics Wire Global Controller"
     -- checkbox control
     button ui_btnUseAll "Use All" width:60 across:2
     button ui_btnUseNone "Use None" width:60
+    button ui_btnRestoreDefaults "Restore Defaults" width:140
 
     -- create buttons
     button ui_btnCreateSelected "Create Selected" enabled:false width:140 offset:[0, 40]
@@ -89,7 +90,12 @@ rollout physicsWireGlobalControllerRollout "Physics Wire Global Controller"
         local selectionItems = ui_multiControllers.selection
         for i = 1 to m_controllerList.count where selectionItems[i] collect m_controllerList[i]
     )
-    fn controllerFilter obj = ((for m in obj.modifiers where (isKindOf m PhysicsWireController) collect m).count > 0)
+    fn getControllerModifier obj = 
+    (
+        local mList = (for m in obj.modifiers where (isKindOf m PhysicsWireController) collect m)
+        if mList.count > 0 then mList[1] else undefined
+    )
+    fn controllerFilter obj = ((getControllerModifier obj) != undefined)
     fn populateListbox =
     (
         -- gather list of objects that are selected in the listbox currently. We will attempt to re-select them
@@ -144,6 +150,71 @@ rollout physicsWireGlobalControllerRollout "Physics Wire Global Controller"
         ui_chkSwingDamping.checked = ui_chkTwistDamping.checked = value
         refreshControls()
     )
+    fn restoreDefaults =
+    (
+        local currentLayer = LayerManager.current.name
+        m_helper.setDropdownSelection ui_ddSplineLayer currentLayer
+        ui_spinWireWidth.value = WIRE_WIDTH
+        m_helper.setDropdownSelection ui_ddBoneLayer currentLayer
+        ui_spinDensity.value = DENSITY
+        ui_spinPadding.value = PADDING
+        m_helper.setDropdownSelection ui_ddConstraintLayer currentLayer
+        ui_aglSwingLimit.degrees = SWING_LIMIT
+        ui_aglTwistLimit.degrees = TWIST_LIMIT
+        ui_spinSwingSpring.value = SWING_SPRING
+        ui_spinTwistSpring.value = TWIST_SPRING
+        ui_spinSwingDamping.value = SWING_DAMPING
+        ui_spinTwistDamping.value = TWIST_DAMPING
+    )
+
+    -- param building functions
+    fn decorateSplineParams wireParams =
+    (
+        if ui_chkSplineLayer.checked then wireParams.sSplineLayer = ui_ddSplineLayer.selected
+        if ui_chkWireWidth.checked then wireParams.fWireWidth = ui_spinWireWidth.value
+    )
+    fn decorateBoneParams boneParams = 
+    (
+        if ui_chkBoneLayer.checked then boneParams.sBoneLayer = ui_ddBoneLayer.selected
+        if ui_chkDensity.checked then boneParams.fDensity = ui_spinDensity.value
+        if ui_chkPadding.checked then boneParams.fCollisionPadding = ui_spinPadding.value
+    )
+    fn decorateConstraintParams constraintParams =
+    (
+        if ui_chkConstraintLayer.checked then constraintParams.sConstraintLayer = ui_ddConstraintLayer.selected
+        if ui_chkSwingLimit.checked then constraintParams.fSwingAngle = ui_aglSwingLimit.degrees
+        if ui_chkTwistLimit.checked then constraintParams.fTwistAngle = ui_aglTwistLimit.degrees
+        if ui_chkSwingSpring.checked then constraintParams.fSwingSpring = ui_spinSwingSpring.value
+        if ui_chkTwistSpring.checked then constraintParams.fTwistSpring = ui_spinTwistSpring.value
+        if ui_chkSwingDamping.checked then constraintParams.fSwingDampening = ui_spinSwingDamping.value
+        if ui_chkTwistDamping.checked then constraintParams.fTwistDampening = ui_spinTwistDamping.value
+    )
+    fn buildSplineParamsFor cMod = (local p = cMod.getSplineData(); decorateSplineParams p; p)
+    fn buildBoneParamsFor cMod = (local p = cMod.getBoneData(); decorateBoneParams p; p)
+    fn buildConstraintParamsFor cMod = (local p = cMod.getConstraintData(); decorateConstraintParams p; p)
+    
+    -- button action entry functions
+    mapped fn performDestroy obj =
+    (
+        local controllerMod = getControllerModifier obj
+        controllerMod.destroyWire()
+    )
+    mapped fn performUpdate obj =
+    (
+        local controllerMod = getControllerModifier obj
+        local splineParams = buildSplineParamsFor controllerMod
+        local boneParams = buildBoneParamsFor controllerMod
+        local constraintParams = buildConstraintParamsFor controllerMod
+        controllerMod.updateWire splineParams boneParams constraintParams
+    )
+    mapped fn performCreate obj =
+    (
+        local controllerMod = getControllerModifier obj
+        local splineParams = buildSplineParamsFor controllerMod
+        local boneParams = buildBoneParamsFor controllerMod
+        local constraintParams = buildConstraintParamsFor controllerMod
+        controllerMod.createWire splineParams boneParams constraintParams
+    )
 
 
     -- rollout events
@@ -162,7 +233,7 @@ rollout physicsWireGlobalControllerRollout "Physics Wire Global Controller"
     on ui_btnRefresh pressed do (populateListbox())
     on ui_btnSelect pressed do (select (getSelectedObjects()))
 
-    --checkbox events
+    -- checkbox events
     on ui_chkSplineLayer changed val do (refreshControls())
     on ui_chkWireWidth changed val do (refreshControls())
     on ui_chkBoneLayer changed val do (refreshControls())
@@ -176,7 +247,14 @@ rollout physicsWireGlobalControllerRollout "Physics Wire Global Controller"
     on ui_chkSwingDamping changed val do (refreshControls())
     on ui_chkTwistDamping changed val do (refreshControls())
 
-    -- button events
+    -- action button events
     on ui_btnUseAll pressed do (setAllCheckboxes true)
     on ui_btnUseNone pressed do (setAllCheckboxes false)
+    on ui_btnRestoreDefaults pressed do (restoreDefaults())
+    on ui_btnCreateSelected pressed do (local s = selection; performCreate (getSelectedObjects()); select s)
+    on ui_btnCreateAll pressed do (local s = selection; performCreate m_controllerList; select s)
+    on ui_btnUpdateSelected pressed do (local s = selection; performUpdate (getSelectedObjects()); select s)
+    on ui_btnUpdateAll pressed do (local s = selection; performUpdate m_controllerList; select s)
+    on ui_btnDestroySelected pressed do (local s = selection; performDestroy (getSelectedObjects()); select s)
+    on ui_btnDestroyAll pressed do (local s = selection; performDestroy m_controllerList; select s)
 )
