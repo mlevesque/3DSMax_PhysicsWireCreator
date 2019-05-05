@@ -506,7 +506,7 @@ version:1
         on mainRollout open do (refresh())
         on ui_butCreate pressed do 
         (
-            -- store this selected object because the skinning process causes teh spline to be selected
+            -- store this selected object because the skinning process causes the spline to be selected
             local sel = $
 
             -- get param data
@@ -522,7 +522,7 @@ version:1
         )
         on ui_butUpdate pressed do
         (
-            -- store this selected object because the skinning process causes teh spline to be selected
+            -- store this selected object because the skinning process causes the spline to be selected
             local sel = $
 
             -- get param data
@@ -536,7 +536,7 @@ version:1
             -- re-select the controller object
             select sel
         )
-        on ui_butDestroy pressed do (destroy(); refreshAll())
+        on ui_butDestroy pressed do (destroyWire(); refreshAll())
     )
 
     /*==================================================================================================================
