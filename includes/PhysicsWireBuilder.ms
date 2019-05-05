@@ -50,6 +50,16 @@ struct PhysicsWireBuilder
         --  alternate up vector
 		if zAxis == [0, 0, 0] then normalize(cross boneDir [0.055, 0, 0.998]) else normalize zAxis
     ),
+
+    /**
+        Returns true if the given bone is large enough for the given radius and padding.
+
+        @return true if large enough; false otherwise
+     */
+    fn __shouldAddCapsuleCollision boneObj radius padding =
+    (
+        boneObj.length >= ((radius + padding) * 4)
+    ),
     
     /**
         Returns a modifier of the given type from the given object. This will get the first occurrance of the
@@ -174,28 +184,30 @@ struct PhysicsWireBuilder
             if rigidBodyMod == undefined then (rigidBodyMod = MassFX_RBody(); addModifier boneObj rigidBodyMod)
 
             -- setup rigid body
-            local wireRadius = structBoneParams.fWireWidth / 2
+            
             local shouldBeKinematic = (i == 1 AND structBoneParams.bStartAnchor == true) \              -- first bone
                                     OR (i == arrBones.count AND structBoneParams.bEndAnchor == true)    -- last bone
             if shouldBeKinematic == true then rigidBodyMod.type = 2 else rigidBodyMod.type = 1
             rigidBodyMod.density = structBoneParams.fDensity
 
-            -- add capsule collision for all bones except for the nub
-            if i < arrBones.count then
+            -- add capsule collision for all bones as long as it is large enough
+            local wireRadius = structBoneParams.fWireWidth / 2
+            local padding = structBoneParams.fCollisionPadding
+            if __shouldAddCapsuleCollision boneObj wireRadius padding then
             (
                 rigidBodyMod.meshType = 3 --capsule
-                rigidBodyMod.meshRadius = wireRadius + structBoneParams.fCollisionPadding
+                rigidBodyMod.meshRadius = wireRadius + padding
                 rigidBodyMod.meshHeight = boneObj.length - (rigidBodyMod.meshRadius * 4)
 
                 -- position and orient collision
                 local trans = Matrix3 1; rotateY trans 90; trans.translation = [rigidBodyMod.meshRadius, 0, 0]
                 rigidBodyMod.SetRBMeshTM 1 trans
             )
-            -- bone nub will use a sphere
+            -- small bones will use a sphere
             else
             (
                 rigidBodyMod.meshType = 1 -- sphere
-                rigidBodyMod.meshRadius = wireRadius
+                rigidBodyMod.meshRadius = boneObj.length / 2
             )
 
             -- set name
