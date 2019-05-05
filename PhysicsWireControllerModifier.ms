@@ -268,10 +268,8 @@ version:1
             The parameters for creating the bones and rigid bodies.
         @param constraintParams
             The parameters for creating the constraints.
-        @param layerParams
-            The parameters for assigning the wire elements to certain layers.
      */
-    fn createWire splineParams boneParams constraintParams layerParams =
+    fn createWire splineParams boneParams constraintParams =
     (
         -- destroy old stuff
         destroyWire()
@@ -299,10 +297,8 @@ version:1
             The parameters for modifying the bones and rigid bodies.
         @param constraintParams
             The parameters for modifying the constraints.
-        @param layerParams
-            The parameters for assigning the wire elements to certain layers.
      */
-    fn updateWire splineParams boneParams constraintParams layerParams =
+    fn updateWire splineParams boneParams constraintParams =
     (
         -- get container
         local parentObj = __getContainer()
@@ -519,7 +515,7 @@ version:1
             local constraintParams = getConstraintData()
 
             -- perform creation
-            createWire splineParams boneParams constraintParams layerParams
+            createWire splineParams boneParams constraintParams
 
             -- re-select the controller object
             select sel
@@ -535,7 +531,7 @@ version:1
             local constraintParams = getConstraintData()
 
             -- perform modifications
-            updateWire splineParams boneParams constraintParams layerParams
+            updateWire splineParams boneParams constraintParams
 
             -- re-select the controller object
             select sel
